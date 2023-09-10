@@ -5,11 +5,7 @@ from random import getrandbits
 
 ITERATIONS = int(cocotb.plusargs["ITERATIONS"])
 
-
-def ch(in0: int, in1: int, in2: int) -> int:
-    """Software implementation of the Choose function"""
-
-    return (in0 & in1) ^ (in0 & in2)
+from model.sha1 import ch
 
 
 @cocotb.test()
