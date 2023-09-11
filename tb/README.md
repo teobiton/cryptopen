@@ -14,7 +14,7 @@ pip install cocotb
 
 ## Verilator installation
 /!\ verilator is required!
-Only version 5.006 or later is supported by Cocotb (v1.8.0).
+Only version **5.006** or later is supported by **cocotb v1.8.0**.
 
 Verilator installation (on Ubuntu): https://verilator.org/guide/latest/install.html
 
@@ -32,9 +32,6 @@ git clone https://github.com/verilator/verilator   # Only first time
 unset VERILATOR_ROOT  # For bash
 cd verilator
 git pull         # Make sure git repository is up-to-date
-git tag          # See what versions exist
-git checkout master      # Use development branch (e.g. recent bug fixes)
-git checkout stable      # Use most recent stable release
 git checkout v5.006      # Switch to specified release version
 
 autoconf         # Create ./configure script
@@ -44,14 +41,40 @@ sudo make install
 ```
 ## Run tests
 
+It is assumed that verilator is used.
+
+### Makefile flow
+
 ```
 make TEST=<test_to_sim>
 ```
 
-By default: executing `make` runs the tests for the choose primitive function.
-This results in the creation of a `dump.vcd` file that can be opened with gtkwave:
+By default: executing `make` runs the tests for the Choose primitive function.
+
+### Cocotb runners
+
+Cocotb tests are also written using runners.
+This enables support for usage with `pytest`.
+
+`pytest` can be install with `pip install pytest`.
+To display cocotb logs when running the tests, the `-s` option must be passed.
+
+### Waves
+
+Both methods result in the creation of a `dump.vcd` file that can be opened with gtkwave:
 
 ```
 sudo apt-get install gtkwave
 gtkwave dump.vcd
 ```
+
+With `pytest`, the vcd file will be in the test's associated simulation build directory.
+
+## Development
+
+All tests must support both the makefile based and runner based testing.
+This allows flexibility and does not require a lot of additional work.
+This is also a way to ensure that all tests are run during CI runs.
+
+Moreover, lint checks are enabled using `black` formatter.
+`black` can be installed with `pip install blavk`.
