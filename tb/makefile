@@ -20,9 +20,6 @@ VERILOG_SOURCES = $(HW_DIRECTORY)/$(VERILOG_FILE)
 ### Testbench arguments
 ITERATIONS := 10 # Number of random tests ran
 
-# Plus arguments retrieved in Cocotb tests
-PLUSARGS = +ITERATIONS=$(ITERATIONS)
-
 # Verilator extra arguments to build waves
 EXTRA_ARGS += --trace --trace-structs
 
