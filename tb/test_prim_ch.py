@@ -1,9 +1,13 @@
 import cocotb
 from cocotb.triggers import Timer
+from cocotb.runner import get_runner, Simulator
 
+import os
 from random import getrandbits
+from typing import List
 
-ITERATIONS = int(cocotb.plusargs["ITERATIONS"])
+ITERATIONS = int(os.getenv("ITERATIONS", 10))
+SIM = os.getenv("SIM", "verilator")
 
 from model.sha1 import ch
 
@@ -61,3 +65,35 @@ async def random_tests(dut) -> None:
             f"Expected Choose function output to be {expected_ch:#x}, "
             f"got {ch_o:#x}"
         )
+
+
+def test_prim_ch():
+    tests_dir: str = os.path.dirname(__file__)
+    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw", "prim"))
+
+    dut: str = "ch"
+    module: str = os.path.splitext(os.path.basename(__file__))[0]
+    toplevel: str = "prim_generic_ch"
+
+    verilog_sources: List[str] = [
+        os.path.join(rtl_dir, f"{dut}.sv"),
+    ]
+
+    extra_args: List[str] = []
+
+    if SIM == "verilator":
+        extra_args = ["--trace", "--trace-structs"]
+
+    sim_build: str = os.path.join(tests_dir, f"{dut}_sim_build")
+
+    runner: Simulator = get_runner(simulator_name=SIM)
+
+    runner.build(
+        verilog_sources=verilog_sources,
+        hdl_toplevel=toplevel,
+        always=True,
+        build_dir=sim_build,
+        build_args=extra_args,
+    )
+
+    runner.test(hdl_toplevel=toplevel, test_module=module)
