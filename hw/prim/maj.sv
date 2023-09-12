@@ -6,9 +6,9 @@
 module prim_generic_maj #(
     parameter int unsigned Width = 32
 ) (
-    input  logic [Width-1:0] maj_in0_i,
-    input  logic [Width-1:0] maj_in1_i,
-    input  logic [Width-1:0] maj_in2_i,
+    input  logic [Width-1:0] in0_i,
+    input  logic [Width-1:0] in1_i,
+    input  logic [Width-1:0] in2_i,
     output logic [Width-1:0] maj_o
 );
 
