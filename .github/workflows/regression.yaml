@@ -1,0 +1,44 @@
+name: sha1 regression
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  ITERATIONS: 50
+  VERILATOR_VERSION: v5.006
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install verilator
+        run: |
+          sudo apt install -y --no-install-recommends help2man make g++ perl python3 autoconf flex bison libfl2 libfl-dev
+          git clone https://github.com/verilator/verilator.git
+          cd verilator
+          git reset --hard ${{ env.VERILATOR_VERSION }}
+          autoconf
+          ./configure
+          make -j $(nproc)
+          sudo make install
+         
+      - name: Test with pytest
+        run: |
+          ITERATIONS=${{ env.ITERATIONS }} pytest tb -s --ignore=tb/model
