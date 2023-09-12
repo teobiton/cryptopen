@@ -9,6 +9,7 @@ from typing import List
 # Secure Hash Algorithm functions
 def left_rotate(x: int, n: int) -> int:
     """Rotation to the left function"""
+    n = n % 32
     return ((x << n) | (x >> (32 - n))) & 0xFFFFFFFF
 
 
