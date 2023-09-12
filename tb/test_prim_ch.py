@@ -8,6 +8,7 @@ from typing import List
 
 ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
+SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 
 from model.sha1 import ch
 
@@ -84,7 +85,7 @@ def test_prim_ch():
     if SIM == "verilator":
         extra_args = ["--trace", "--trace-structs"]
 
-    sim_build: str = os.path.join(tests_dir, f"{dut}_sim_build")
+    sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
 
     runner: Simulator = get_runner(simulator_name=SIM)
 
