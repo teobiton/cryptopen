@@ -1,0 +1,5 @@
+# Python dependencies
+pytest
+black
+
+cocotb == 1.8.0
