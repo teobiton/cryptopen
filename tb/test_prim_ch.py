@@ -21,7 +21,7 @@ async def directed_tests(dut) -> None:
     in1: int = 0x000F_FFFF
     in2: int = 0xF0F0_F0F0
 
-    expected_ch: int = 0xF0FF_0000
+    expected_ch: int = 0x000F_F0F0
 
     dut.in0_i.value = in0
     dut.in1_i.value = in1
