@@ -12,6 +12,6 @@ module prim_generic_ch #(
     output logic [Width-1:0] ch_o
 );
 
-    assign ch_o = (in0_i & in1_i) ^ (in0_i & in2_i);
+    assign ch_o = (in0_i & in1_i) ^ (~in0_i & in2_i);
 
 endmodule
