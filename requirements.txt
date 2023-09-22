@@ -3,3 +3,4 @@ pytest
 black
 
 cocotb == 1.8.0
+cocotb-bus == 0.2.1
