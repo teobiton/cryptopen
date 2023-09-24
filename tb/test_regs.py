@@ -1,6 +1,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, Timer
+from cocotb.result import TestSuccess
 from cocotb.runner import get_runner, Simulator
 
 import os
@@ -72,6 +73,63 @@ async def registers_accesses(dut) -> None:
             f"Expected {rndval:#x} at address {regaddr:#x}, "
             f"read {regval:#x}"
         )
+
+
+@cocotb.test()
+async def invalid_registers_accesses(dut) -> None:
+    """Error response from slave interface
+
+    Write operations are performed with random data and invalid addresses.
+    It is checked whether an error response is sent back.
+
+    """
+
+    await init(dut)
+
+    REGS_ADDR: List[int] = [
+        align(addr, BYTE_ALIGN) for addr in range(0, 512, DATA_WIDTH)
+    ]
+
+    maxaddr: int = 64 if BYTE_ALIGN == 1 else 16
+    INVALID_REGS_ADDR: List[int] = [
+        addr for addr in range(maxaddr) if addr not in REGS_ADDR
+    ]
+
+    if not INVALID_REGS_ADDR:
+        raise TestSuccess(
+            f"No invalid addresses for DataWidth = {DATA_WIDTH} and ByteAlign = {BYTE_ALIGN}"
+        )
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=SHA_MAPPING)
+
+    await Timer(35, units="ns")
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await ClockCycles(dut.clk_i, 5)
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    dut._log.info(f"Random invalid register accesses with {ITERATIONS} iterations.")
+
+    wr_val: int = 0x55
+
+    for idx in range(ITERATIONS):
+        # Write to an invalid register
+        regaddr: int = choice(INVALID_REGS_ADDR)
+        await master.write(address=regaddr, value=wr_val)
+        dut._log.debug(f"Write: {wr_val:#x} at address {regaddr:#x}")
+
+        error: int = int(dut.sha_s_rsperror_o.value)
+
+        assert error == 1, (
+            f"Index {idx}: " f"Expected an error response at address {regaddr:#x}."
+        )
+
+        await ClockCycles(dut.clk_i, 5)
 
 
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
