@@ -4,8 +4,9 @@ from cocotb.triggers import ClockCycles, Timer
 from cocotb.runner import get_runner, Simulator
 
 import os
+import pytest
 from secrets import choice, randbits
-from typing import List
+from typing import Dict, List
 
 from bus.master import Master
 from lib import init, align, SHA_MAPPING
@@ -73,7 +74,23 @@ async def registers_accesses(dut) -> None:
         )
 
 
-def test_sha_regs():
+@pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
+@pytest.mark.parametrize("ByteAlign", ["1'b0", "1'b1"])
+def test_sha_regs(DataWidth, ByteAlign):
+    """Run cocotb tests on sha1 registers for different combinations of parameters.
+
+    Args:
+            DataWidth: Data bus width.
+            ByteAlign: Whether we want an alignment on bytes or words.
+
+    """
+
+    # skip test if there is an invalid combination of parameters
+    if ByteAlign == "1'b0" and DataWidth in ["8", "16"]:
+        pytest.skip(
+            f"Invalid combination: ByteAlign = {ByteAlign} and DataWidth = {DataWidth}"
+        )
+
     tests_dir: str = os.path.dirname(__file__)
     rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw"))
 
@@ -90,6 +107,11 @@ def test_sha_regs():
     if SIM == "verilator" and WAVES == "1":
         extra_args = ["--trace", "--trace-structs"]
 
+    parameters: Dict[str, str] = {}
+
+    parameters["DataWidth"] = DataWidth
+    parameters["ByteAlign"] = ByteAlign
+
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
 
     runner: Simulator = get_runner(simulator_name=SIM)
@@ -100,6 +122,7 @@ def test_sha_regs():
         always=True,
         build_dir=sim_build,
         build_args=extra_args,
+        parameters=parameters,
     )
 
     runner.test(hdl_toplevel=toplevel, test_module=module)
