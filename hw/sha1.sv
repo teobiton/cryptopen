@@ -6,7 +6,7 @@
 module sha1 #(
     parameter int unsigned DataWidth = 64,
     parameter int unsigned AddrWidth = 32,
-    parameter int unsigned DataBytes = (DataWidth / 8),
+    parameter int unsigned DataBytes = DataWidth >> 3,
     parameter bit ByteAlign = 1
 ) (
     input  logic                 clk_i,             // Clock
@@ -42,8 +42,8 @@ module sha1 #(
     logic [NumRegs-1:0]                sha_regssel;
 
     logic                 reqwrite;
+    logic [DataBytes-1:0] bytewren;
     logic                 reqready;
-    logic [DataWidth-1:0] reqdata;
     logic [AddrBits-1:0]  reqaddr;
 
     logic [AddrWidth-1:0] unused_reqaddr;
@@ -54,13 +54,9 @@ module sha1 #(
     // lint
     assign unused_reqaddr = AddrWidth'({'0, sha_s_reqaddr_i[AddrWidth-1:AddrBits]});
 
-    assign reqwrite = sha_s_reqvalid_i & sha_s_reqwrite_i & &sha_s_reqstrobe_i;
+    assign reqwrite = sha_s_reqvalid_i & sha_s_reqwrite_i;
     assign reqaddr  = sha_s_reqaddr_i[AddrBits-1:0];
     assign reqready = ~rsperror;
-
-    for (genvar b = 0; b < DataBytes; b++) begin : gen_strobe_mask
-        assign reqdata[b*8 +: 8]  = sha_s_reqdata_i[b*8 +: 8] & {8{sha_s_reqstrobe_i[b]}};
-    end
 
     for (genvar r = 0; r < NumRegs; r++) begin : gen_sha_regssel
         assign sha_regssel[r] = (AddrBits'(reqaddr) == AddrBits'(r*AddrStep)) & sha_s_reqvalid_i;
@@ -73,6 +69,10 @@ module sha1 #(
     assign sha_s_rspvalid_o = sha_s_reqvalid_i & sha_s_rspready_i & |sha_regssel;
     assign sha_s_reqready_o = reqready;
 
+    for (genvar b = 0; b < DataBytes; b++) begin : gen_byte_wren
+        assign bytewren[b] = sha_s_reqstrobe_i[b] & reqwrite;
+    end
+
     always_comb begin : sha_regs_wr
 
         rspdata = rspdata_q;
@@ -84,8 +84,9 @@ module sha1 #(
         for (int r = 0; r < NumRegs; r++) begin
             if (sha_regssel[r]) begin
                 rspdata = sha_regs_q[r];
-                if (reqwrite) begin
-                    sha_regs[r] = reqdata;
+                for (int b = 0; b < DataBytes; b++) begin
+                    sha_regs[r][b*8 +: 8] = (bytewren[b]) ? sha_s_reqdata_i[b*8 +: 8]
+                                                          : sha_regs_q[r][b*8 +: 8];
                 end
             end
         end
