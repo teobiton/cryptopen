@@ -62,7 +62,7 @@ class Mapper(BusDriver):
     def read(self, address: int):
         pass
 
-    def write(self, address: int, value: int):
+    def write(self, address: int, value: int, strobe: int):
         pass
 
 
@@ -130,7 +130,9 @@ class Master(Mapper):
         return data
 
     @coroutine
-    async def write(self, address: int, value: int) -> None:
+    async def write(
+        self, address: int, value: int, strobe: Optional[int] = None
+    ) -> None:
         """Write request to the given address with the specified value.
 
         Args:
@@ -138,6 +140,9 @@ class Master(Mapper):
             value: The data value to write.
 
         """
+
+        if strobe is None:
+            strobe = int("1" * len(self.bus.reqstrobe), 2)
 
         await self._acquire_lock()
 
@@ -148,7 +153,7 @@ class Master(Mapper):
         self.bus.reqdata.value = value
         self.bus.reqwrite.value = 1
         self.bus.reqvalid.value = 1
-        self.bus.reqstrobe.value = int("1" * len(self.bus.reqstrobe), 2)
+        self.bus.reqstrobe.value = strobe
 
         # Deassert write
         await RisingEdge(self.clock)

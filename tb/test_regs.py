@@ -23,6 +23,17 @@ if cocotb.simulator.is_running():
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
 
 
+def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> int:
+    regval: int = 0
+    data: int = 0
+
+    for b in range(0, databytes):
+        data = wrval if strobe & (1 << b) else prevval
+        regval |= data & (0xFF << b * 8)
+
+    return regval
+
+
 @cocotb.test()
 async def registers_accesses(dut) -> None:
     """Access the sha registers
@@ -130,6 +141,67 @@ async def invalid_registers_accesses(dut) -> None:
         )
 
         await ClockCycles(dut.clk_i, 5)
+
+
+@cocotb.test()
+async def strobe_registers_accesses(dut) -> None:
+    """Access the sha registers with random strobe value
+
+    Write operations are performed with random data and valid addresses.
+    This tests that only valid bytes are written.
+
+    """
+
+    await init(dut)
+
+    REGS_ADDR: List[int] = [
+        align(addr, BYTE_ALIGN) for addr in range(0, 512, DATA_WIDTH)
+    ]
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=SHA_MAPPING)
+
+    await Timer(35, units="ns")
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await ClockCycles(dut.clk_i, 5)
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    dut._log.info(f"Random strobe register accesses with {ITERATIONS} iterations.")
+
+    for idx in range(ITERATIONS):
+        rndval: int = randbits(DATA_WIDTH)
+        validbytes: int = randbits(DATA_WIDTH >> 3)
+        regaddr: int = choice(REGS_ADDR)
+
+        # Read register before write operation
+        prev_regval = await master.read(address=regaddr)
+
+        expval: int = sim_strobe_write(
+            prev_regval.value, rndval, validbytes, DATA_WIDTH >> 3
+        )
+
+        # Write to the register
+        await master.write(address=regaddr, value=rndval, strobe=validbytes)
+        dut._log.debug(
+            f"Write: {rndval:#x} at address {regaddr:#x} with strobe {validbytes:#b}"
+        )
+
+        await ClockCycles(dut.clk_i, 5)
+
+        regval = await master.read(address=regaddr)
+        regval = int(regval.value)
+        dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
+
+        assert regval == expval, (
+            f"Index {idx}: "
+            f"Expected {expval:#x} at address {regaddr:#x}, "
+            f"read {regval:#x}"
+        )
 
 
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
