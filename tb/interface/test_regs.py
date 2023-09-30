@@ -10,7 +10,6 @@ from secrets import choice, randbits
 from typing import Dict, List
 
 from bus.master import Master
-from lib import init, align, SHA_MAPPING
 
 ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
@@ -20,7 +19,54 @@ WAVES = os.getenv("WAVES", "0")
 if cocotb.simulator.is_running():
     DATA_WIDTH = int(cocotb.top.DataWidth)
     ADDR_WIDTH = int(cocotb.top.AddrWidth)
+    BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
+
+
+MAPPING: Dict[str, str] = {
+    "reqdata": "reqdata_i",
+    "reqaddr": "reqaddr_i",
+    "reqvalid": "reqvalid_i",
+    "reqwrite": "reqwrite_i",
+    "reqready": "reqready_o",
+    "reqstrobe": "reqstrobe_i",
+    "rspready": "rspready_i",
+    "rspvalid": "rspvalid_o",
+    "rspdata": "rspdata_o",
+    "rsperror": "rsperror_o",
+}
+
+
+@cocotb.coroutine
+async def init(dut):
+    """Initialize input signals value"""
+
+    """ 
+
+    This would be the correct way to do it.
+    But verilator does not support it so the list must be maintained by hand.
+
+    for signal in dir(sha):
+        if signal.endswith('_i') and signal != "clk_i":
+            dut._id(signal, extended=False).value = 0 
+            
+    """
+
+    dut.reqdata_i.value = 0
+    dut.reqaddr_i.value = 0
+    dut.reqvalid_i.value = 0
+    dut.reqwrite_i.value = 0
+    dut.reqstrobe_i.value = 0
+    dut.rspready_i.value = 0
+
+    dut.rst_ni.value = 0
+
+    await Timer(1, units="ns")
+
+
+def align(addr: int, bytealign: bool):
+    step = 8 if bytealign else 32
+    return int(addr / step)
 
 
 def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> int:
@@ -47,12 +93,12 @@ async def registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, 512, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=SHA_MAPPING)
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
 
     await Timer(35, units="ns")
 
@@ -98,22 +144,23 @@ async def invalid_registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, 512, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
-    maxaddr: int = 64 if BYTE_ALIGN == 1 else 16
+    maxaddr: int = BLOCK_WIDTH >> 3 if BYTE_ALIGN == 1 else BLOCK_WIDTH >> 5
     INVALID_REGS_ADDR: List[int] = [
         addr for addr in range(maxaddr) if addr not in REGS_ADDR
     ]
 
     if not INVALID_REGS_ADDR:
         raise TestSuccess(
-            f"No invalid addresses for DataWidth = {DATA_WIDTH} and ByteAlign = {BYTE_ALIGN}"
+            f"No invalid addresses for BlockWidth = {BLOCK_WIDTH}, ",
+            f"DataWidth = {DATA_WIDTH} and ByteAlign = {BYTE_ALIGN}",
         )
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=SHA_MAPPING)
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
 
     await Timer(35, units="ns")
 
@@ -134,7 +181,7 @@ async def invalid_registers_accesses(dut) -> None:
         await master.write(address=regaddr, value=wr_val)
         dut._log.debug(f"Write: {wr_val:#x} at address {regaddr:#x}")
 
-        error: int = int(dut.sha_s_rsperror_o.value)
+        error: int = int(dut.rsperror_o.value)
 
         assert error == 1, (
             f"Index {idx}: " f"Expected an error response at address {regaddr:#x}."
@@ -155,12 +202,12 @@ async def strobe_registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, 512, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=SHA_MAPPING)
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
 
     await Timer(35, units="ns")
 
@@ -205,13 +252,15 @@ async def strobe_registers_accesses(dut) -> None:
 
 
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
+@pytest.mark.parametrize("BlockWidth", ["256", "384", "512"])
 @pytest.mark.parametrize("ByteAlign", ["1'b0", "1'b1"])
-def test_sha_regs(DataWidth, ByteAlign):
+def test_sha_regs(DataWidth, BlockWidth, ByteAlign):
     """Run cocotb tests on sha1 registers for different combinations of parameters.
 
     Args:
-            DataWidth: Data bus width.
-            ByteAlign: Whether we want an alignment on bytes or words.
+            DataWidth:  Data bus width.
+            BlockWidth: Width of the block to compute
+            ByteAlign:  Whether we want an alignment on bytes or words.
 
     """
 
@@ -222,11 +271,13 @@ def test_sha_regs(DataWidth, ByteAlign):
         )
 
     tests_dir: str = os.path.dirname(__file__)
-    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw", "sha1"))
+    rtl_dir: str = os.path.abspath(
+        os.path.join(tests_dir, "..", "..", "hw", "interface")
+    )
 
-    dut: str = "sha1"
+    dut: str = "reg_interface"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel: str = "sha1"
+    toplevel: str = "reg_interface"
 
     verilog_sources: List[str] = [
         os.path.join(rtl_dir, f"{dut}.sv"),
@@ -240,6 +291,7 @@ def test_sha_regs(DataWidth, ByteAlign):
     parameters: Dict[str, str] = {}
 
     parameters["DataWidth"] = DataWidth
+    parameters["BlockWidth"] = BlockWidth
     parameters["ByteAlign"] = ByteAlign
 
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")

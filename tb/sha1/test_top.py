@@ -29,14 +29,17 @@ async def toggle_reset(dut) -> None:
 
 def test_sha_toplevel():
     tests_dir: str = os.path.dirname(__file__)
-    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw", "sha1"))
+    hw_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw"))
+    sha_dir: str = os.path.abspath(os.path.join(hw_dir, "sha1"))
+    interface_dir: str = os.path.abspath(os.path.join(hw_dir, "interface"))
 
     dut: str = "sha1"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
     toplevel: str = "sha1"
 
     verilog_sources: List[str] = [
-        os.path.join(rtl_dir, f"{dut}.sv"),
+        os.path.join(sha_dir, f"{dut}.sv"),
+        os.path.join(interface_dir, "reg_interface.sv"),
     ]
 
     extra_args: List[str] = []
