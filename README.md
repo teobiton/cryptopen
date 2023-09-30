@@ -1,25 +1,28 @@
-# sha1
+# cryptopen
 
 ## Introduction
 
-This project is a SystemVerilog implementation of the SHA-1 cryptographic hash function. 
-It is based on the specification in [NIST FIPS 180-2](doc/fips180-2.pdf).
+This project is a library of hardware implementation of cryptographic algorithms.
+The primary language used is SystemVerilog.
+The chosen algorithms are the most commonly used and the ones where hardware accelerators are appreciated.
 
 The implementation is still a work in progress.
+Current development is for the sha1 algorithm.
+The next ones will be other secure hash algorithms.
 
 ## Implementation details
 
-The **sha1** project is organized as following:
+The cryptopen project is organized as following:
 - hw - RTL source files (SystemVerilog)
 - tb  - Testbenches for the RTL files using Cocotb
-- doc - documentation with **sha1** high-level specification and technical document
+- doc - documentation with high-level specification and technical documents
 
-The *hw* folder contains the top-level implementation as well as submodules in *prim*.
-The submodules are **sha1** functions that are used in several places.
+The *hw* folder contains the top-level implementations as well as submodules in *prim*.
+The primitives are algorithmic functions that are used in several places.
 
 ## Cocotb
 
-The module and its submodules are tested using cocotb.
+The modules and their submodules are tested using cocotb.
 Cocotb is a Python framework for verification.
 
 All cocotb tests are in *tb*.
@@ -27,4 +30,5 @@ Every submodule has its own test suite with Python implementations of their func
 
 ## Purpose
 
-The final goal is to provide a functional OpenSource implementation that can be used in System on Chips. This will require a extensive testbench and a flow with synthesis tools to use the **sha1** modules on a FPGA board.
+The final goal is to provide functional OpenSource implementations that can be used in System on Chips. 
+This will require extensive testbenches and a flow with synthesis tools.
