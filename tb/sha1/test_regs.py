@@ -222,7 +222,7 @@ def test_sha_regs(DataWidth, ByteAlign):
         )
 
     tests_dir: str = os.path.dirname(__file__)
-    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw"))
+    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw", "sha1"))
 
     dut: str = "sha1"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
