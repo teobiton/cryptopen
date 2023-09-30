@@ -11,7 +11,11 @@ ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 
-from model.sha1 import left_rotate
+
+def left_rotate(x: int, n: int) -> int:
+    """Rotation to the left function"""
+    n = n % 32
+    return ((x << n) | (x >> (32 - n))) & 0xFFFFFFFF
 
 
 @cocotb.test()
@@ -45,7 +49,7 @@ async def random_tests(dut) -> None:
 @pytest.mark.parametrize("rot_position", [0, 16, 32, 48, 64])
 def test_prim_rotl(rot_position):
     tests_dir: str = os.path.dirname(__file__)
-    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw", "prim"))
+    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw", "prim"))
 
     dut: str = "rotl"
     module: str = os.path.splitext(os.path.basename(__file__))[0]

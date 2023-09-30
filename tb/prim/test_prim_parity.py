@@ -10,7 +10,10 @@ ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 
-from model.sha1 import parity
+
+def parity(x: int, y: int, z: int) -> int:
+    """Parity function"""
+    return x ^ y ^ z
 
 
 @cocotb.test()
@@ -71,7 +74,7 @@ async def random_tests(dut) -> None:
 
 def test_prim_parity():
     tests_dir: str = os.path.dirname(__file__)
-    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw", "prim"))
+    rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw", "prim"))
 
     dut: str = "parity"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
