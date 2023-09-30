@@ -1,6 +1,6 @@
 # Running the tests suite
 
-To test the SystemVerilog design, only open-source software are used.
+To test the SystemVerilog design, only open-source softwares are used.
 
 ## Cocotb installation
 
@@ -49,7 +49,7 @@ It is assumed that verilator is used.
 make TEST=<test_to_sim>
 ```
 
-By default: executing `make` runs the tests for the Choose primitive function.
+Each set of blocks have their separated makefile flow.
 
 ### Cocotb runners
 
@@ -77,4 +77,4 @@ This allows flexibility and does not require a lot of additional work.
 This is also a way to ensure that all tests are run during CI runs.
 
 Moreover, lint checks are enabled using `black` formatter.
-`black` can be installed with `pip install blavk`.
+`black` can be installed with `pip install black`.

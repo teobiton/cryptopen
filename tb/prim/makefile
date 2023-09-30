@@ -4,18 +4,19 @@ TOPLEVEL_LANG = verilog
 SIM = verilator
 
 # Directories definition
-TB_DIRECTORY = $(shell pwd)
-HW_DIRECTORY = $(shell dirname $(TB_DIRECTORY))/hw
+PRIM_TB_DIRECTORY = $(shell pwd)
+TB_DIRECTORY = $(shell dirname $(PRIM_TB_DIRECTORY))
+PRIM_DIRECTORY = $(shell dirname $(TB_DIRECTORY))/hw/prim
 
 # Default verilog file to test
-VERILOG_FILE = prim/ch.sv
+VERILOG_FILE = ch.sv
 TOPLEVEL     = prim_generic_ch
 
 # Test to simulate
 MODULE = test_prim_ch
 
-# Pointing to the VHDL file to test
-VERILOG_SOURCES = $(HW_DIRECTORY)/$(VERILOG_FILE)
+# Pointing to the verilog files to test
+VERILOG_SOURCES = $(PRIM_DIRECTORY)/$(VERILOG_FILE)
 
 ### Testbench arguments
 ITERATIONS := 10 # Number of random tests ran
