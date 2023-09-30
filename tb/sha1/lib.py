@@ -18,11 +18,6 @@ SHA_MAPPING: Dict[str, str] = {
 }
 
 
-def align(addr: int, bytealign: bool):
-    step = 8 if bytealign else 32
-    return int(addr / step)
-
-
 @cocotb.coroutine
 async def init(sha):
     """Initialize input signals value"""
