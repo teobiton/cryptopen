@@ -40,25 +40,25 @@ module sha1 #(
         .AddrWidth(AddrWidth),
         .BlockWidth(BlockWidth),
         .ByteAlign(ByteAlign)
-    ) u_sha_reg_interface (
+    ) u_sha1_reg_interface (
         .clk_i,
         .rst_ni,
-        .reqdata_i   ( sha_s_reqdata_i   ),
-        .reqaddr_i   ( sha_s_reqaddr_i   ),
-        .reqvalid_i  ( sha_s_reqvalid_i  ),
-        .reqwrite_i  ( sha_s_reqwrite_i  ),
-        .reqready_o  ( sha_s_reqready_o  ),
-        .reqstrobe_i ( sha_s_reqstrobe_i ),
-        .rspready_i  ( sha_s_rspready_i  ),
-        .rspvalid_o  ( sha_s_rspvalid_o  ),
-        .rspdata_o   ( sha_s_rspdata_o   ),
-        .rsperror_o  ( sha_s_rsperror_o  ),
-        .block_o     ( sha_block         )
+        .reqdata_i     ( sha_s_reqdata_i   ),
+        .reqaddr_i     ( sha_s_reqaddr_i   ),
+        .reqvalid_i    ( sha_s_reqvalid_i  ),
+        .reqwrite_i    ( sha_s_reqwrite_i  ),
+        .reqready_o    ( sha_s_reqready_o  ),
+        .reqstrobe_i   ( sha_s_reqstrobe_i ),
+        .rspready_i    ( sha_s_rspready_i  ),
+        .rspvalid_o    ( sha_s_rspvalid_o  ),
+        .rspdata_o     ( sha_s_rspdata_o   ),
+        .rsperror_o    ( sha_s_rsperror_o  ),
+        .hold_i        (             1'b0  ),
+        .idle_i        (             1'b0  ),
+        .enable_hash_o (                   ),
+        .reset_hash_o  (                   ),
+        .block_o       ( sha_block         )
     );
-
-    // TODO: determine how we want to validate the registers when computing the hash value
-    // assign sha_regsfixed = ~(reqwrite & |sha_regssel);
-    // assign sha_regsvalid = (sha_process_i | sha_regsvalid_q) & ~sha_regsfixed;
 
     // sha1 core
     // ...
