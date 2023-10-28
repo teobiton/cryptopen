@@ -1,9 +1,10 @@
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, Timer
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb.result import TestSuccess
 from cocotb.runner import get_runner, Simulator
 
+from math import ceil, log2
 import os
 import pytest
 from secrets import choice, randbits
@@ -21,6 +22,8 @@ if cocotb.simulator.is_running():
     ADDR_WIDTH = int(cocotb.top.AddrWidth)
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
+    ADDR_BITS = int(cocotb.top.AddrBits)
+    CTRL_REG_ADDR = int(cocotb.top.CtrlRegAddr)
 
 
 MAPPING: Dict[str, str] = {
@@ -58,6 +61,9 @@ async def init(dut):
     dut.reqwrite_i.value = 0
     dut.reqstrobe_i.value = 0
     dut.rspready_i.value = 0
+
+    dut.idle_i.value = 0
+    dut.hold_i.value = 0
 
     dut.rst_ni.value = 0
 
@@ -249,6 +255,74 @@ async def strobe_registers_accesses(dut) -> None:
             f"Expected {expval:#x} at address {regaddr:#x}, "
             f"read {regval:#x}"
         )
+
+
+@cocotb.test()
+async def control_register(dut) -> None:
+    """Control register accesses
+
+    Write and read operations are performed on the control register.
+
+    """
+
+    await init(dut)
+
+    assert CTRL_REG_ADDR == (1 << ADDR_BITS)
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
+
+    await Timer(35, units="ns")
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await ClockCycles(dut.clk_i, 5)
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    # Enable computation
+
+    await master.write(address=CTRL_REG_ADDR, value=0x1)
+
+    await ClockCycles(dut.clk_i, 5)
+
+    regval = await master.read(address=CTRL_REG_ADDR)
+    regval = int(regval.value)
+
+    assert regval == 0x1
+    assert dut.enable_hash_o.value == 0x1
+
+    dut._log.debug(">> Hash enabled")
+
+    # Reset computation
+
+    await master.write(address=CTRL_REG_ADDR, value=0x2)
+
+    await RisingEdge(dut.clk_i)
+
+    assert dut.reset_hash_o.value == 0x1
+
+    regval = await master.read(address=CTRL_REG_ADDR)
+    assert regval == 0x0
+    assert dut.enable_hash_o.value == 0x0
+
+    dut._log.debug(">> Hash reset")
+
+    # Deassert enable with idle or hold
+
+    await master.write(address=CTRL_REG_ADDR, value=0x1)
+
+    await ClockCycles(dut.clk_i, 5)
+
+    dut.idle_i.value = 0x1
+
+    await ClockCycles(dut.clk_i, 2)
+
+    assert dut.enable_hash_o.value == 0x0
+
+    dut._log.debug(">> Hash deasserted by idle signal")
 
 
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
