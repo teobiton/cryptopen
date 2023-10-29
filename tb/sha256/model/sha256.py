@@ -91,6 +91,7 @@ class sha256:
         self._encoding = encoding
         self._debug = debug
         self._dbg_hash_values = []
+        self._round_computations = []
 
     def process(self, message):
         _pre_message = self._pre_processing(message)
@@ -144,6 +145,10 @@ class sha256:
 
         a, b, c, d, e, f, g, h = self._h
 
+        self._round_computations.append(
+            " ".join(format(x, "08x") for x in [a, b, c, d, e, f, g, h])
+        )
+
         for i in range(64):
             s1 = right_rotate(e, 6) ^ right_rotate(e, 11) ^ right_rotate(e, 25)
             ch = (e & f) ^ (~e & g)
@@ -160,6 +165,10 @@ class sha256:
             c = b
             b = a
             a = (temp1 + temp2) & 0xFFFFFFFF
+
+            self._round_computations.append(
+                " ".join(format(x, "08x") for x in [a, b, c, d, e, f, g, h])
+            )
 
         self._h[0] = (self._h[0] + a) & 0xFFFFFFFF
         self._h[1] = (self._h[1] + b) & 0xFFFFFFFF
