@@ -3,10 +3,12 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb.runner import get_runner, Simulator
 
-from enum import Enum
 import os
+from secrets import choice
+from string import ascii_lowercase
 from typing import List
 
+from lib256 import fsm, init, intblock, round_computation
 from model.sha256 import sha256
 
 SIM = os.getenv("SIM", "verilator")
@@ -16,41 +18,6 @@ WAVES = os.getenv("WAVES", "0")
 if cocotb.simulator.is_running():
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     DIGEST_WIDTH = int(cocotb.top.DigestWidth)
-
-
-class fsm(Enum):
-    IDLE = 0x0
-    HASHING = 0x1
-    HOLD = 0x2
-    DONE = 0x3
-
-
-@cocotb.coroutine
-async def init(dut):
-    """Initialize input signals value"""
-
-    dut.block_i.value = 0
-    dut.enable_hash_i.value = 0
-    dut.rst_hash_i.value = 0
-
-    dut.rst_ni.value = 0
-
-    await Timer(1, units="ns")
-
-
-def _round_computation(dut):
-    values = [
-        int(dut.a_q.value),
-        int(dut.b_q.value),
-        int(dut.c_q.value),
-        int(dut.d_q.value),
-        int(dut.e_q.value),
-        int(dut.f_q.value),
-        int(dut.g_q.value),
-        int(dut.h_q.value),
-    ]
-
-    return " ".join(format(x, "08x") for x in values)
 
 
 @cocotb.test()
@@ -143,7 +110,7 @@ async def one_block_message(dut) -> None:
 
     # apply 512-bit block to block_i input
     # byte order is big endian because logic is reversed between python's lists and verilog logic
-    dut.block_i.value = int.from_bytes(model._pre_processing(message), byteorder="big")
+    dut.block_i.value = intblock(model.blocks, 0)
     dut.enable_hash_i.value = 1
 
     # Wait until hash is done
@@ -151,14 +118,114 @@ async def one_block_message(dut) -> None:
         roundcntr = int(dut.round_cntr_q.value)
         dut._log.debug(
             f"Round {roundcntr}:\n"
-            f"Hardware : {_round_computation(dut)}\n"
-            f"Model    : {model._round_computations[roundcntr]}\n"
+            f"Hardware : {round_computation(dut)}\n"
+            f"Model    : {model.round_computations[roundcntr]}\n"
         )
 
-        if dut.digest_valid.value:
+        if dut.round_done.value:
             dut.enable_hash_i.value = 0
             break
         await RisingEdge(dut.clk_i)
+
+    await RisingEdge(dut.clk_i)
+    digest: str = f"{int(dut.sha_digest_o.value):x}"
+
+    # Compare hash values at the end of current cycle
+    assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
+
+
+@cocotb.test()
+async def multi_blocks_message(dut) -> None:
+    """Compute a multi-block message (N=2)"""
+
+    await init(dut)
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await Timer(35, units="ns")
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    message: str = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+
+    # generate hash value from model
+    model: sha256 = sha256()
+    model.process(message)
+
+    for cycle in range(len(model.blocks)):
+        # apply 512-bit block to block_i input
+        # byte order is big endian because logic is reversed between python's lists and verilog logic
+        dut.block_i.value = intblock(model.blocks, cycle)
+        dut.enable_hash_i.value = 1
+
+        # Wait until hash is done
+        while True:
+            roundcntr = int(dut.round_cntr_q.value)
+            dut._log.debug(
+                f"Round {roundcntr}:\n"
+                f"Hardware : {round_computation(dut)}\n"
+                f"Model    : {model.round_computations[64*cycle+roundcntr]}\n"
+            )
+
+            if dut.round_done.value or dut.digest_valid.value:
+                dut.enable_hash_i.value = 0
+                await ClockCycles(dut.clk_i, 3)
+                break
+            await RisingEdge(dut.clk_i)
+
+    digest: str = f"{int(dut.sha_digest_o.value):x}"
+
+    # Compare hash values at the end of current cycle
+    assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
+
+
+@cocotb.test()
+async def long_random_message(dut) -> None:
+    """Compute a long random message"""
+
+    await init(dut)
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await Timer(35, units="ns")
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    # Compute a random message
+    message: str = "".join(choice(ascii_lowercase) for _ in range(1000))
+
+    dut._log.info(f"Performing sha256 algorithm for message : {message}")
+
+    # generate hash value from model
+    model: sha256 = sha256()
+    model.process(message)
+
+    for cycle in range(len(model.blocks)):
+        # apply 512-bit block to block_i input
+        # byte order is big endian because logic is reversed between python's lists and verilog logic
+        dut.block_i.value = intblock(model.blocks, cycle)
+        dut.enable_hash_i.value = 1
+
+        # Wait until hash is done
+        while True:
+            roundcntr = int(dut.round_cntr_q.value)
+            dut._log.debug(
+                f"Round {roundcntr}:\n"
+                f"Hardware : {round_computation(dut)}\n"
+                f"Model    : {model.round_computations[64*cycle+roundcntr]}\n"
+            )
+
+            if dut.round_done.value or dut.digest_valid.value:
+                dut.enable_hash_i.value = 0
+                await ClockCycles(dut.clk_i, 3)
+                break
+            await RisingEdge(dut.clk_i)
 
     digest: str = f"{int(dut.sha_digest_o.value):x}"
 
