@@ -91,7 +91,8 @@ class sha256:
         self._encoding = encoding
         self._debug = debug
         self._dbg_hash_values = []
-        self._round_computations = []
+        self.round_computations = []
+        self.blocks = []
 
     def process(self, message):
         _pre_message = self._pre_processing(message)
@@ -103,6 +104,7 @@ class sha256:
 
         for m in range(0, l, 64):
             block = _pre_message[m : m + 64]
+            self.blocks.append(block)
             self._process_block(block)
             self._dbg_hash_values.append(self.digest())
 
@@ -145,7 +147,7 @@ class sha256:
 
         a, b, c, d, e, f, g, h = self._h
 
-        self._round_computations.append(
+        self.round_computations.append(
             " ".join(format(x, "08x") for x in [a, b, c, d, e, f, g, h])
         )
 
@@ -166,7 +168,7 @@ class sha256:
             b = a
             a = (temp1 + temp2) & 0xFFFFFFFF
 
-            self._round_computations.append(
+            self.round_computations.append(
                 " ".join(format(x, "08x") for x in [a, b, c, d, e, f, g, h])
             )
 
