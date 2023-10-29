@@ -1,4 +1,4 @@
-name: sha1 regression
+name: RTL regression
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"]
-        module: ["interface", "sha1"]
+        module: ["interface", "sha1", "sha256"]
 
     steps:
       - uses: actions/checkout@v3
