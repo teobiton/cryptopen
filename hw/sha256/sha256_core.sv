@@ -375,6 +375,6 @@ module sha256_core #(
     // user available data is computed here
     // digest valid bit and digest on 256 or 224 bits
     assign sha_digestvalid_o = digest_valid_q;
-    assign sha_digest_o      = digest_q[DigestWidth-1:0];
+    assign sha_digest_o      = digest_q[255:256-DigestWidth];
 
 endmodule
