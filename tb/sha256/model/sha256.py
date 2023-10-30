@@ -77,8 +77,18 @@ class sha256:
         0xC67178F2,
     ]
 
-    def __init__(self, debug=False, encoding="ascii"):
-        self._h = [
+    def __init__(self, sha224=False, debug=False, encoding="ascii"):
+        sha224_h = [
+            0xC1059ED8,
+            0x367CD507,
+            0x3070DD17,
+            0xF70E5939,
+            0xFFC00B31,
+            0x68581511,
+            0x64F98FA7,
+            0xBEFA4FA4,
+        ]
+        sha256_h = [
             0x6A09E667,
             0xBB67AE85,
             0x3C6EF372,
@@ -88,6 +98,9 @@ class sha256:
             0x1F83D9AB,
             0x5BE0CD19,
         ]
+
+        self._h = sha224_h if sha224 else sha256_h
+        self._truncate_hash = sha224
         self._encoding = encoding
         self._debug = debug
         self._dbg_hash_values = []
@@ -182,6 +195,8 @@ class sha256:
         self._h[7] = (self._h[7] + h) & 0xFFFFFFFF
 
     def digest(self):
+        if self._truncate_hash:
+            return "".join(format(x, "08x") for x in self._h[0:7])
         return "".join(format(x, "08x") for x in self._h)
 
     def _dbg_digest(self):

@@ -4,9 +4,10 @@ from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb.runner import get_runner, Simulator
 
 import os
+import pytest
 from secrets import choice
 from string import ascii_lowercase
-from typing import List
+from typing import Dict, List
 
 from lib256 import fsm, init, intblock, round_computation
 from model.sha256 import sha256
@@ -105,7 +106,7 @@ async def one_block_message(dut) -> None:
     message: str = "abc"
 
     # generate hash value from model
-    model: sha256 = sha256()
+    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
     model.process(message)
 
     # apply 512-bit block to block_i input
@@ -152,7 +153,7 @@ async def multi_blocks_message(dut) -> None:
     message: str = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
 
     # generate hash value from model
-    model: sha256 = sha256()
+    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
     model.process(message)
 
     for cycle in range(len(model.blocks)):
@@ -203,7 +204,7 @@ async def long_random_message(dut) -> None:
     dut._log.info(f"Performing sha256 algorithm for message : {message}")
 
     # generate hash value from model
-    model: sha256 = sha256()
+    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
     model.process(message)
 
     for cycle in range(len(model.blocks)):
@@ -233,7 +234,8 @@ async def long_random_message(dut) -> None:
     assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
 
 
-def test_sha256_core():
+@pytest.mark.parametrize("DigestWidth", ["224", "256"])
+def test_sha256_core(DigestWidth):
     tests_dir: str = os.path.dirname(__file__)
     hw_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw"))
     sha_dir: str = os.path.abspath(os.path.join(hw_dir, "sha256"))
@@ -254,6 +256,10 @@ def test_sha256_core():
     # 2 warnings disallow testbench to run, waive them for now
     extra_args.append("-Wno-WIDTH")
 
+    parameters: Dict[str, str] = {}
+
+    parameters["DigestWidth"] = DigestWidth
+
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
 
     runner: Simulator = get_runner(simulator_name=SIM)
@@ -264,6 +270,7 @@ def test_sha256_core():
         always=True,
         build_dir=sim_build,
         build_args=extra_args,
+        parameters=parameters,
     )
 
     runner.test(hdl_toplevel=toplevel, test_module=module)
