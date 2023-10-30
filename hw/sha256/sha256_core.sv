@@ -11,11 +11,12 @@ module sha256_core #(
     input  logic                   rst_ni,           // Reset
 
     input  logic [BlockWidth-1:0]  block_i,          // sha block
-    input  logic                   enable_hash_i,    // Enable hash algorith
-    input  logic                   rst_hash_i,       // Reset hash algorith
+    input  logic                   enable_hash_i,    // Enable hash algorithm
+    input  logic                   rst_hash_i,       // Reset hash algorithm
+    output logic                   hold_o,           // Hold state
+    output logic                   idle_o,           // Idle state
 
     output logic [6:0]             round_o,          // Round number (0..63)
-    output logic [63:0]            cycle_o,          // Acknowledge digest
     output logic [DigestWidth-1:0] sha_digest_o,     // Hash digest
     output logic                   sha_digestvalid_o // Hash digest valid
 );
@@ -94,7 +95,7 @@ module sha256_core #(
         end
     endfunction : eom
 
-    logic [BlockWidth-1:0] sha_block, sha_block_q;
+    logic [BlockWidth-1:0] word_mem, word_mem_q;
 
     logic eom_captured, eom_captured_q;
     logic eom_flag;
@@ -148,7 +149,7 @@ module sha256_core #(
         next_state   = current_state;
         round_cntr   = round_cntr_q;
         digest_valid = digest_valid_q;
-        sha_block    = sha_block_q;
+        word_mem     = word_mem_q;
 
         eom_captured    = eom_captured_q;
         unset_hash_flag = 1'b0;
@@ -195,7 +196,7 @@ module sha256_core #(
                 digest_valid = 1'b0;
                 round_cntr   = '0;
 
-                sha_block = block_i;
+                word_mem     = block_i;
                 eom_captured = 1'b0;
 
                 // start hashing next cycle if enabled
@@ -246,14 +247,14 @@ module sha256_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = sha_block[~round_cntr_q[3:0]*32 +: 32];
+                        word = word_mem[~round_cntr_q[3:0]*32 +: 32];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
-                        word = fword(sha_block, round_cntr);
-                        sha_block[~round_cntr[3:0]* 32 +: 32] = word;
+                        word = fword(word_mem, round_cntr);
+                        word_mem[~round_cntr[3:0]* 32 +: 32] = word;
                     end
 
                     {a, b, c, d, e, f, g, h} = {
@@ -288,7 +289,7 @@ module sha256_core #(
                     next_state = IDLE;
                 // if enable, accept block input and go to hashing
                 end else if (enable_hash) begin
-                    sha_block  = block_i;
+                    word_mem   = block_i;
                     next_state = HASHING;
                 end
 
@@ -300,8 +301,8 @@ module sha256_core #(
                 // computation is over based on the message length
 
                 // assert digest is valid
-                digest_valid = 1'b1;
-                eom_captured = 1'b0;
+                digest_valid    = 1'b1;
+                eom_captured    = 1'b0;
                 unset_hash_flag = 1'b1;
 
                 // next move has to be a reset since computation is done
@@ -348,11 +349,11 @@ module sha256_core #(
         end
     end
 
-    always_ff @(posedge clk_i, negedge rst_ni) begin : sha_block_ff
+    always_ff @(posedge clk_i, negedge rst_ni) begin : word_mem_ff
         if (~rst_ni) begin
-            sha_block_q  <= '0;
+            word_mem_q  <= '0;
         end else begin
-            sha_block_q  <= sha_block;
+            word_mem_q  <= word_mem;
         end
     end
 
@@ -361,6 +362,10 @@ module sha256_core #(
 
     // counters that are forwarded to the register interface
     assign round_o = round_cntr_q;
+
+    // additional information for control register
+    assign hold_o = (current_state == HOLD);
+    assign idle_o = (current_state == IDLE);
 
     always_ff @(posedge clk_i, negedge rst_ni) begin : digest_ff
         if (~rst_ni) begin
