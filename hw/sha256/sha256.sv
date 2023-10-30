@@ -25,8 +25,6 @@ module sha256 #(
     output logic [DataWidth-1:0] sha_s_rspdata_o,   // Data bus response
     output logic                 sha_s_rsperror_o,  // Error response
 
-    input  logic                 sha_process_i,     // Start algorithm pulse
-    input  logic                 sha_digestack_i,   // Acknowledge digest
     output logic [255:0]         sha_digest_o,      // Hash digest
     output logic                 sha_digestvalid_o  // Hash digest valid
 );
@@ -37,8 +35,10 @@ module sha256 #(
 
     logic [BlockWidth-1:0] sha_block;
 
-    logic enable_hash, rst_hash;
-    logic idle, hold;
+    logic enable_hash
+    logic rst_hash;
+    logic idle
+    logic hold;
 
     logic [DigestWidth-1:0] digest;
     logic                   digest_valid;
@@ -77,8 +77,9 @@ module sha256 #(
         .block_i        ( sha_block    ),
         .enable_hash_i  ( enable_hash  ),
         .rst_hash_i     ( rst_hash     ),
+        .hold_o         ( hold         ),
+        .idle_o         ( idle         ),
         .round_o        (              ), // TBD: Not connected for now
-        .cycle_o        (              ), // TBD: Not connected for now
         .digest_o       ( digest       ),
         .digest_valid_o ( digest_valid ),
     );
