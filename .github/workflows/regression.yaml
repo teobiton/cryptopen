@@ -5,9 +5,12 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    paths:
+      - '**.sv'
+      - 'tb/**.py'
 
 env:
-  ITERATIONS: 50
+  ITERATIONS: 100
   VERILATOR_VERSION: v5.006
 
 jobs:
