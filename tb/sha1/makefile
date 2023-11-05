@@ -16,7 +16,7 @@ TOPLEVEL = sha1
 MODULE = test_top
 
 # Pointing to the verilog files to test
-VERILOG_SOURCES = $(SHA_DIRECTORY)/sha1.sv $(ITF_DIRECTORY)/reg_interface.sv
+VERILOG_SOURCES = $(SHA_DIRECTORY)/sha1.sv $(ITF_DIRECTORY)/simple_reg_interface.sv
 
 ### Testbench arguments
 ITERATIONS := 10 # Number of random tests ran

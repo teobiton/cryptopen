@@ -30,34 +30,38 @@ module sha1 #(
     output logic                 sha_digestvalid_o  // Hash digest valid
 );
 
-    // Calculate internal parameters
-    localparam int unsigned BlockWidth = 512;
+    // SHA-1 internal parameters
+    localparam int unsigned BlockWidth  = 512;
+    localparam int unsigned DigestWidth = 256;
 
     logic [BlockWidth-1:0] sha_block;
 
-    reg_interface #(
-        .DataWidth(DataWidth),
-        .AddrWidth(AddrWidth),
-        .BlockWidth(BlockWidth),
-        .ByteAlign(ByteAlign)
+    simple_reg_interface #(
+        .DataWidth   ( DataWidth   ),
+        .AddrWidth   ( AddrWidth   ),
+        .BlockWidth  ( BlockWidth  ),
+        .DigestWidth ( DigestWidth ),
+        .ByteAlign   ( ByteAlign   )
     ) u_sha1_reg_interface (
         .clk_i,
         .rst_ni,
-        .reqdata_i     ( sha_s_reqdata_i   ),
-        .reqaddr_i     ( sha_s_reqaddr_i   ),
-        .reqvalid_i    ( sha_s_reqvalid_i  ),
-        .reqwrite_i    ( sha_s_reqwrite_i  ),
-        .reqready_o    ( sha_s_reqready_o  ),
-        .reqstrobe_i   ( sha_s_reqstrobe_i ),
-        .rspready_i    ( sha_s_rspready_i  ),
-        .rspvalid_o    ( sha_s_rspvalid_o  ),
-        .rspdata_o     ( sha_s_rspdata_o   ),
-        .rsperror_o    ( sha_s_rsperror_o  ),
-        .hold_i        (             1'b0  ),
-        .idle_i        (             1'b0  ),
-        .enable_hash_o (                   ),
-        .reset_hash_o  (                   ),
-        .block_o       ( sha_block         )
+        .reqdata_i      ( sha_s_reqdata_i   ),
+        .reqaddr_i      ( sha_s_reqaddr_i   ),
+        .reqvalid_i     ( sha_s_reqvalid_i  ),
+        .reqwrite_i     ( sha_s_reqwrite_i  ),
+        .reqready_o     ( sha_s_reqready_o  ),
+        .reqstrobe_i    ( sha_s_reqstrobe_i ),
+        .rspready_i     ( sha_s_rspready_i  ),
+        .rspvalid_o     ( sha_s_rspvalid_o  ),
+        .rspdata_o      ( sha_s_rspdata_o   ),
+        .rsperror_o     ( sha_s_rsperror_o  ),
+        .hold_i         (             1'b0  ),
+        .idle_i         (             1'b0  ),
+        .enable_hash_o  (                   ),
+        .reset_hash_o   (                   ),
+        .block_o        ( sha_block         ),
+        .digest_i       (               '0  ),
+        .digest_valid_i (             1'b0  )
     );
 
     // sha1 core
