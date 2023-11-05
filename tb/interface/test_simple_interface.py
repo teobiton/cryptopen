@@ -4,7 +4,6 @@ from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb.result import TestSuccess
 from cocotb.runner import get_runner, Simulator
 
-from math import ceil, log2
 import os
 import pytest
 from secrets import choice, randbits
@@ -22,8 +21,12 @@ if cocotb.simulator.is_running():
     ADDR_WIDTH = int(cocotb.top.AddrWidth)
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
-    ADDR_BITS = int(cocotb.top.AddrBits)
-    CTRL_REG_ADDR = int(cocotb.top.CtrlRegAddr)
+    DIGEST_WIDTH = int(cocotb.top.DigestWidth)
+
+# Base addresses
+CTRL_ADDR = 0x000
+BLOCK_ADDR = 0x100
+DIGEST_ADDR = 0x200
 
 
 MAPPING: Dict[str, str] = {
@@ -87,8 +90,8 @@ def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> i
 
 
 @cocotb.test()
-async def registers_accesses(dut) -> None:
-    """Access the sha registers
+async def block_registers_accesses(dut) -> None:
+    """Access the block registers
 
     Write operations are performed with random data and valid addresses.
     The addresses are read back and it is expected to find the previously
@@ -99,7 +102,8 @@ async def registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) + BLOCK_ADDR
+        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
@@ -139,7 +143,7 @@ async def registers_accesses(dut) -> None:
 
 
 @cocotb.test()
-async def invalid_registers_accesses(dut) -> None:
+async def invalid_block_registers_accesses(dut) -> None:
     """Error response from slave interface
 
     Write operations are performed with random data and invalid addresses.
@@ -150,12 +154,13 @@ async def invalid_registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) + BLOCK_ADDR
+        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
     maxaddr: int = BLOCK_WIDTH >> 3 if BYTE_ALIGN == 1 else BLOCK_WIDTH >> 5
     INVALID_REGS_ADDR: List[int] = [
-        addr for addr in range(maxaddr) if addr not in REGS_ADDR
+        addr for addr in range(maxaddr, maxaddr + BLOCK_ADDR) if addr not in REGS_ADDR
     ]
 
     if not INVALID_REGS_ADDR:
@@ -187,6 +192,9 @@ async def invalid_registers_accesses(dut) -> None:
         await master.write(address=regaddr, value=wr_val)
         dut._log.debug(f"Write: {wr_val:#x} at address {regaddr:#x}")
 
+        # Wait next cycle for response
+        await RisingEdge(dut.clk_i)
+
         error: int = int(dut.rsperror_o.value)
 
         assert error == 1, (
@@ -197,8 +205,8 @@ async def invalid_registers_accesses(dut) -> None:
 
 
 @cocotb.test()
-async def strobe_registers_accesses(dut) -> None:
-    """Access the sha registers with random strobe value
+async def strobe_block_registers_accesses(dut) -> None:
+    """Access the block registers with random strobe value
 
     Write operations are performed with random data and valid addresses.
     This tests that only valid bytes are written.
@@ -208,7 +216,8 @@ async def strobe_registers_accesses(dut) -> None:
     await init(dut)
 
     REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
+        align(addr, BYTE_ALIGN) + BLOCK_ADDR
+        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
@@ -267,8 +276,6 @@ async def control_register(dut) -> None:
 
     await init(dut)
 
-    assert CTRL_REG_ADDR == (1 << ADDR_BITS)
-
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
     master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
@@ -284,11 +291,11 @@ async def control_register(dut) -> None:
 
     # Enable computation
 
-    await master.write(address=CTRL_REG_ADDR, value=0x1)
+    await master.write(address=CTRL_ADDR, value=0x1)
 
     await ClockCycles(dut.clk_i, 5)
 
-    regval = await master.read(address=CTRL_REG_ADDR)
+    regval = await master.read(address=CTRL_ADDR)
     regval = int(regval.value)
 
     assert regval == 0x1
@@ -298,13 +305,13 @@ async def control_register(dut) -> None:
 
     # Reset computation
 
-    await master.write(address=CTRL_REG_ADDR, value=0x2)
+    await master.write(address=CTRL_ADDR, value=0x2)
 
     await RisingEdge(dut.clk_i)
 
     assert dut.reset_hash_o.value == 0x1
 
-    regval = await master.read(address=CTRL_REG_ADDR)
+    regval = await master.read(address=CTRL_ADDR)
     assert regval == 0x0
     assert dut.enable_hash_o.value == 0x0
 
@@ -312,7 +319,7 @@ async def control_register(dut) -> None:
 
     # Deassert enable with idle or hold
 
-    await master.write(address=CTRL_REG_ADDR, value=0x1)
+    await master.write(address=CTRL_ADDR, value=0x1)
 
     await ClockCycles(dut.clk_i, 5)
 
@@ -325,10 +332,71 @@ async def control_register(dut) -> None:
     dut._log.debug(">> Hash deasserted by idle signal")
 
 
+@cocotb.test()
+async def digest_register(dut) -> None:
+    """Digest register access
+
+    Read operations are performed on the digest register.
+
+    """
+
+    await init(dut)
+
+    REGS_ADDR: List[int] = [
+        align(addr, BYTE_ALIGN) + DIGEST_ADDR
+        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
+    ]
+
+    SHL = 3 if BYTE_ALIGN else 5
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
+
+    await Timer(35, units="ns")
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await ClockCycles(dut.clk_i, 5)
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    # Give a random value to the digest input
+    digest = randbits(DIGEST_WIDTH)
+    dut.digest_i.value = digest
+
+    await ClockCycles(dut.clk_i, 5)
+
+    for idx in range(ITERATIONS):
+        # Write to a random register
+        regaddr: int = choice(REGS_ADDR)
+
+        nbits = (regaddr & 0xFF) << SHL
+        mask = ((1 << DATA_WIDTH) - 1) << nbits
+        expval = (digest & mask) >> nbits
+
+        # Read operations on the digest register
+
+        regval = await master.read(address=regaddr)
+        regval = int(regval.value)
+
+        dut._log.debug(f"Digest: {digest:#x} with mask {mask:#x}")
+
+        assert regval == expval
+
+        assert regval == expval, (
+            f"Index {idx}: "
+            f"Expected {expval:#x} at address {regaddr:#x}, "
+            f"read {regval:#x}"
+        )
+
+
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
-@pytest.mark.parametrize("BlockWidth", ["256", "384", "512"])
+@pytest.mark.parametrize("BlockWidth", ["512", "1024"])
 @pytest.mark.parametrize("ByteAlign", ["1'b0", "1'b1"])
-def test_sha_regs(DataWidth, BlockWidth, ByteAlign):
+@pytest.mark.parametrize("DigestWidth", ["224", "256"])
+def test_sha_regs(DataWidth, BlockWidth, ByteAlign, DigestWidth):
     """Run cocotb tests on sha1 registers for different combinations of parameters.
 
     Args:
@@ -349,9 +417,9 @@ def test_sha_regs(DataWidth, BlockWidth, ByteAlign):
         os.path.join(tests_dir, "..", "..", "hw", "interface")
     )
 
-    dut: str = "reg_interface"
+    dut: str = "simple_reg_interface"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel: str = "reg_interface"
+    toplevel: str = "simple_reg_interface"
 
     verilog_sources: List[str] = [
         os.path.join(rtl_dir, f"{dut}.sv"),
@@ -367,6 +435,7 @@ def test_sha_regs(DataWidth, BlockWidth, ByteAlign):
     parameters["DataWidth"] = DataWidth
     parameters["BlockWidth"] = BlockWidth
     parameters["ByteAlign"] = ByteAlign
+    parameters["DigestWidth"] = DigestWidth
 
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
 

@@ -39,7 +39,7 @@ def test_sha_toplevel():
 
     verilog_sources: List[str] = [
         os.path.join(sha_dir, f"{dut}.sv"),
-        os.path.join(interface_dir, "reg_interface.sv"),
+        os.path.join(interface_dir, "simple_reg_interface.sv"),
     ]
 
     extra_args: List[str] = []

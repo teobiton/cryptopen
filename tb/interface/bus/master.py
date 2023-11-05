@@ -1,8 +1,8 @@
 """Driver for a simple bus interface
 
-The interface is inspired from APB but its size is generic and thus not
-100% compliant. The master is really simple and allows read and write
-operations.
+The interface is inspired from APB but simplified its size is generic
+and thus not 100% compliant. The master is really simple and allows
+read and write operations.
 
 """
 
