@@ -1,6 +1,6 @@
 // ------------------------------------------------------
-//  Module name: sha256
-//  Description: sha256 top-level with register inteface
+//  Module name: SHA-256
+//  Description: SHA-256 top-level with register inteface
 // ------------------------------------------------------
 
 module sha256 #(
@@ -79,7 +79,6 @@ module sha256 #(
         .rst_hash_i     ( rst_hash     ),
         .hold_o         ( hold         ),
         .idle_o         ( idle         ),
-        .round_o        (              ), // TBD: Not connected for now
         .digest_o       ( digest       ),
         .digest_valid_o ( digest_valid ),
     );

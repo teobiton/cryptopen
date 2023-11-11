@@ -9,7 +9,7 @@ from secrets import choice
 from string import ascii_lowercase
 from typing import Dict, List
 
-from lib256 import fsm, init, intblock, round_computation
+from lib2 import fsm, init, intblock, round_computation
 from model.sha256 import sha256
 
 SIM = os.getenv("SIM", "verilator")

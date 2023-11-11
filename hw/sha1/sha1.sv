@@ -1,6 +1,6 @@
 // ------------------------------------------------------
-//  Module name: sha1
-//  Description: sha1 block with register inteface
+//  Module name: SHA-1
+//  Description: SHA-1 block with register inteface
 // ------------------------------------------------------
 
 module sha1 #(
@@ -64,7 +64,7 @@ module sha1 #(
         .digest_valid_i (             1'b0  )
     );
 
-    // sha1 core
+    // SHA-1 core
     // ...
     // inputs: sha_block, sha_regsvalid, sha_digestack
     // outputs: digest, digest_valid, (computing ?)

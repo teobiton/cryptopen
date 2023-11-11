@@ -1,6 +1,6 @@
 // ------------------------------------------------------
-//  Module name: sha256 core
-//  Description: sha256 algorithm and control unit
+//  Module name: SHA-256 core
+//  Description: SHA-256 algorithm and control unit
 // ------------------------------------------------------
 
 module sha256_core #(
@@ -16,7 +16,6 @@ module sha256_core #(
     output logic                   hold_o,           // Hold state
     output logic                   idle_o,           // Idle state
 
-    output logic [6:0]             round_o,          // Round number (0..63)
     output logic [DigestWidth-1:0] sha_digest_o,     // Hash digest
     output logic                   sha_digestvalid_o // Hash digest valid
 );
@@ -29,7 +28,7 @@ module sha256_core #(
         DONE    = 2'h3
     } sha_fsm_e;
 
-    // sha256 and sha224 digest initial values
+    // SHA-256 and SHA-224 digest initial values
     integer H0 = (DigestWidth == 224) ? 32'hc1059ed8 : 32'h6a09e667;
     integer H1 = (DigestWidth == 224) ? 32'h367cd507 : 32'hbb67ae85;
     integer H2 = (DigestWidth == 224) ? 32'h3070dd17 : 32'h3c6ef372;
@@ -39,7 +38,7 @@ module sha256_core #(
     integer H6 = (DigestWidth == 224) ? 32'h64f98fa7 : 32'h1f83d9ab;
     integer H7 = (DigestWidth == 224) ? 32'hbefa4fa4 : 32'h5be0cd19;
 
-    // K constant used by sha256 and sha224 algorithms
+    // K constant used by SHA-256 and SHA-224 algorithms
     integer K[64] = {
         32'h428a2f98, 32'h71374491, 32'hb5c0fbcf, 32'he9b5dba5,
         32'h3956c25b, 32'h59f111f1, 32'h923f82a4, 32'hab1c5ed5,
@@ -59,7 +58,7 @@ module sha256_core #(
         32'h90befffa, 32'ha4506ceb, 32'hbef9a3f7, 32'hc67178f2
     };
 
-    // sha256 function to compute new words
+    // SHA-256 function to compute new words
     function automatic logic [31:0] fword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
         int idx0 = ~(32'(cntr) - 15) & 32'hf;
         int idx1 = ~(32'(cntr) - 7) & 32'hf;
@@ -359,9 +358,6 @@ module sha256_core #(
 
     // assemble the raw digest value
     assign digest = {h0, h1, h2, h3, h4, h5, h6, h7};
-
-    // counters that are forwarded to the register interface
-    assign round_o = round_cntr_q;
 
     // additional information for control register
     assign hold_o = (current_state == HOLD);
