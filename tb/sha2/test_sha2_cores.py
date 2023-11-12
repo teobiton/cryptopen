@@ -7,10 +7,11 @@ import os
 import pytest
 from secrets import choice
 from string import ascii_lowercase
-from typing import Dict, List
+from typing import Dict, List, Tuple, Union
 
 from lib2 import fsm, init, intblock, round_computation
 from model.sha256 import sha256
+from model.sha512 import sha512
 
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
@@ -19,6 +20,16 @@ WAVES = os.getenv("WAVES", "0")
 if cocotb.simulator.is_running():
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     DIGEST_WIDTH = int(cocotb.top.DigestWidth)
+
+
+# Factory to build models on the fly
+def core_factory(block_width, digest_width) -> Union[sha256, sha512]:
+    if block_width == 1024:
+        return sha512(digest_width=digest_width)
+    elif block_width == 512:
+        return sha256(digest_width=digest_width)
+    else:
+        return ValueError(f"Unsupported block width: {block_width}")
 
 
 @cocotb.test()
@@ -106,7 +117,7 @@ async def one_block_message(dut) -> None:
     message: str = "abc"
 
     # generate hash value from model
-    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
+    model = core_factory(BLOCK_WIDTH, DIGEST_WIDTH)
     model.process(message)
 
     # apply 512-bit block to block_i input
@@ -132,7 +143,9 @@ async def one_block_message(dut) -> None:
     digest: str = f"{int(dut.sha_digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
-    assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
+    assert digest == model.digest().lstrip(
+        "0"
+    ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
 
 
 @cocotb.test()
@@ -150,10 +163,15 @@ async def multi_blocks_message(dut) -> None:
 
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
-    message: str = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+    messages = {
+        512: "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        1024: "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+    }
+
+    message: str = messages[BLOCK_WIDTH]
 
     # generate hash value from model
-    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
+    model = core_factory(BLOCK_WIDTH, DIGEST_WIDTH)
     model.process(message)
 
     for cycle in range(len(model.blocks)):
@@ -180,7 +198,9 @@ async def multi_blocks_message(dut) -> None:
     digest: str = f"{int(dut.sha_digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
-    assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
+    assert digest == model.digest().lstrip(
+        "0"
+    ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
 
 
 @cocotb.test()
@@ -204,7 +224,7 @@ async def long_random_message(dut) -> None:
     dut._log.info(f"Performing sha256 algorithm for message : {message}")
 
     # generate hash value from model
-    model: sha256 = sha256(sha224=DIGEST_WIDTH == 224)
+    model = core_factory(BLOCK_WIDTH, DIGEST_WIDTH)
     model.process(message)
 
     for cycle in range(len(model.blocks)):
@@ -231,18 +251,25 @@ async def long_random_message(dut) -> None:
     digest: str = f"{int(dut.sha_digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
-    assert digest == model.digest(), f"Expected digest {model.digest()}, got {digest}"
+    assert digest == model.digest().lstrip(
+        "0"
+    ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
 
 
-@pytest.mark.parametrize("DigestWidth", ["224", "256"])
-def test_sha256_core(DigestWidth):
+@pytest.mark.parametrize("DigestWidth", ["224", "256", "384", "512"])
+@pytest.mark.parametrize("core", ["sha256", "sha512"])
+def test_sha256_core(core, DigestWidth):
+    # skip test if there is an invalid combination of parameters
+    if core == "sha256" and DigestWidth in ["384", "512"]:
+        pytest.skip(f"Invalid combination: core = {core} and DataWidth = {DigestWidth}")
+
     tests_dir: str = os.path.dirname(__file__)
     hw_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "..", "hw"))
-    sha_dir: str = os.path.abspath(os.path.join(hw_dir, "sha256"))
+    sha_dir: str = os.path.abspath(os.path.join(hw_dir, core))
 
-    dut: str = "sha256_core"
+    dut: str = f"{core}_core"
     module: str = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel: str = "sha256_core"
+    toplevel: str = f"{core}_core"
 
     verilog_sources: List[str] = [
         os.path.join(sha_dir, f"{dut}.sv"),
