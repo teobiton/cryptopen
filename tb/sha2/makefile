@@ -12,7 +12,7 @@ SHA_DIRECTORY = $(shell dirname $(TB_DIRECTORY))/hw/sha256
 TOPLEVEL = sha256_core
 
 # Test to simulate
-MODULE = test_core
+MODULE = test_sha2_cores
 
 # Pointing to the verilog files to test
 VERILOG_SOURCES = $(SHA_DIRECTORY)/sha256_core.sv
