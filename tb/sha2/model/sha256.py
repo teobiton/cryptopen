@@ -77,7 +77,7 @@ class sha256:
         0xC67178F2,
     ]
 
-    def __init__(self, sha224=False, debug=False, encoding="ascii"):
+    def __init__(self, digest_width=256, debug=False, encoding="ascii"):
         sha224_h = [
             0xC1059ED8,
             0x367CD507,
@@ -99,8 +99,13 @@ class sha256:
             0x5BE0CD19,
         ]
 
-        self._h = sha224_h if sha224 else sha256_h
-        self._truncate_hash = sha224
+        assert digest_width in [
+            224,
+            256,
+        ], f"Unsupported digest width for sha256: {digest_width}"
+
+        self._h = sha224_h if digest_width == 224 else sha256_h
+        self._digest_width = digest_width
         self._encoding = encoding
         self._debug = debug
         self._dbg_hash_values = []
@@ -195,9 +200,9 @@ class sha256:
         self._h[7] = (self._h[7] + h) & 0xFFFFFFFF
 
     def digest(self):
-        if self._truncate_hash:
-            return "".join(format(x, "08x") for x in self._h[0:7])
-        return "".join(format(x, "08x") for x in self._h)
+        digest = "".join(format(x, "08x") for x in self._h)
+        end_idx = int((self._digest_width / 4))
+        return digest[0:end_idx]
 
     def _dbg_digest(self):
         N = len(self._dbg_hash_values)
