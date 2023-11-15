@@ -1,13 +1,14 @@
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge, Timer
-from cocotb.result import TestSuccess
-from cocotb.runner import get_runner, Simulator
-
 import os
-import pytest
 from secrets import choice, randbits
 from typing import Dict, List
+
+import cocotb
+import pytest
+from cocotb.clock import Clock
+from cocotb.regression import TestFactory
+from cocotb.result import TestSuccess
+from cocotb.runner import Simulator, get_runner
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 from bus.master import Master
 
@@ -89,12 +90,11 @@ def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> i
     return regval
 
 
-@cocotb.test()
-async def block_registers_accesses(dut) -> None:
-    """Access the block registers
+async def block_registers_access(dut, test_id) -> None:
+    """
 
-    Write operations are performed with random data and valid addresses.
-    The addresses are read back and it is expected to find the previously
+    Write operation is performed with random data and valid address.
+    The address is read back and it is expected to find the previously
     written data.
 
     """
@@ -105,6 +105,9 @@ async def block_registers_accesses(dut) -> None:
         align(addr, BYTE_ALIGN) + BLOCK_ADDR
         for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
+
+    data: int = randbits(DATA_WIDTH)
+    regaddr: int = choice(REGS_ADDR)
 
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
@@ -119,34 +122,27 @@ async def block_registers_accesses(dut) -> None:
 
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
-    dut._log.info(f"Random register accesses with {ITERATIONS} iterations.")
+    dut._log.info(f"Register access with data = {data:#x} at address = {regaddr:#x}.")
 
-    for idx in range(ITERATIONS):
-        rndval: int = randbits(DATA_WIDTH)
+    await master.write(address=regaddr, value=data)
+    dut._log.debug(f"Write: {data:#x} at address {regaddr:#x}")
 
-        # Write to a random register
-        regaddr: int = choice(REGS_ADDR)
-        await master.write(address=regaddr, value=rndval)
-        dut._log.debug(f"Write: {rndval:#x} at address {regaddr:#x}")
+    await ClockCycles(dut.clk_i, 5)
 
-        await ClockCycles(dut.clk_i, 5)
+    regval = await master.read(address=regaddr)
+    regval = int(regval.value)
+    dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
 
-        regval = await master.read(address=regaddr)
-        regval = int(regval.value)
-        dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
-
-        assert regval == rndval, (
-            f"Index {idx}: "
-            f"Expected {rndval:#x} at address {regaddr:#x}, "
-            f"read {regval:#x}"
-        )
+    assert regval == data, (
+        f"Test {test_id}:",
+        f"Expected {data:#x} at address {regaddr:#x}, " f"read {regval:#x}",
+    )
 
 
-@cocotb.test()
-async def invalid_block_registers_accesses(dut) -> None:
+async def invalid_block_registers_access(dut, test_id) -> None:
     """Error response from slave interface
 
-    Write operations are performed with random data and invalid addresses.
+    Write operation is performed with random data and invalid address.
     It is checked whether an error response is sent back.
 
     """
@@ -169,6 +165,9 @@ async def invalid_block_registers_accesses(dut) -> None:
             f"DataWidth = {DATA_WIDTH} and ByteAlign = {BYTE_ALIGN}",
         )
 
+    data: int = 0x55
+    regaddr: int = choice(INVALID_REGS_ADDR)
+
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
     master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
@@ -182,30 +181,26 @@ async def invalid_block_registers_accesses(dut) -> None:
 
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
-    dut._log.info(f"Random invalid register accesses with {ITERATIONS} iterations.")
+    dut._log.info(
+        f"Invalid register access with data = {data:#x} at address = {regaddr:#x}."
+    )
 
-    wr_val: int = 0x55
+    await master.write(address=regaddr, value=data)
+    dut._log.debug(f"Write: {data:#x} at address {regaddr:#x}")
 
-    for idx in range(ITERATIONS):
-        # Write to an invalid register
-        regaddr: int = choice(INVALID_REGS_ADDR)
-        await master.write(address=regaddr, value=wr_val)
-        dut._log.debug(f"Write: {wr_val:#x} at address {regaddr:#x}")
+    # Wait next cycle for response
+    await RisingEdge(dut.clk_i)
 
-        # Wait next cycle for response
-        await RisingEdge(dut.clk_i)
+    error: int = int(dut.rsperror_o.value)
 
-        error: int = int(dut.rsperror_o.value)
+    assert (
+        error == 1
+    ), f"Test {test_id}: Expected an error response at address {regaddr:#x}."
 
-        assert error == 1, (
-            f"Index {idx}: " f"Expected an error response at address {regaddr:#x}."
-        )
-
-        await ClockCycles(dut.clk_i, 5)
+    await ClockCycles(dut.clk_i, 5)
 
 
-@cocotb.test()
-async def strobe_block_registers_accesses(dut) -> None:
+async def strobe_block_registers_accesses(dut, test_id) -> None:
     """Access the block registers with random strobe value
 
     Write operations are performed with random data and valid addresses.
@@ -220,6 +215,10 @@ async def strobe_block_registers_accesses(dut) -> None:
         for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
     ]
 
+    data: int = randbits(DATA_WIDTH)
+    validbytes: int = randbits(DATA_WIDTH >> 3)
+    regaddr: int = choice(REGS_ADDR)
+
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
 
     master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
@@ -233,37 +232,105 @@ async def strobe_block_registers_accesses(dut) -> None:
 
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
-    dut._log.info(f"Random strobe register accesses with {ITERATIONS} iterations.")
+    # Read register before write operation
+    prev_regval = await master.read(address=regaddr)
 
-    for idx in range(ITERATIONS):
-        rndval: int = randbits(DATA_WIDTH)
-        validbytes: int = randbits(DATA_WIDTH >> 3)
-        regaddr: int = choice(REGS_ADDR)
+    expval: int = sim_strobe_write(prev_regval.value, data, validbytes, DATA_WIDTH >> 3)
 
-        # Read register before write operation
-        prev_regval = await master.read(address=regaddr)
+    dut._log.info(
+        f"Register access with data = {data:#x} at address = {regaddr:#x}, with strobe = {validbytes:#x}."
+    )
 
-        expval: int = sim_strobe_write(
-            prev_regval.value, rndval, validbytes, DATA_WIDTH >> 3
-        )
+    # Write to the register
+    await master.write(address=regaddr, value=data, strobe=validbytes)
 
-        # Write to the register
-        await master.write(address=regaddr, value=rndval, strobe=validbytes)
-        dut._log.debug(
-            f"Write: {rndval:#x} at address {regaddr:#x} with strobe {validbytes:#b}"
-        )
+    await ClockCycles(dut.clk_i, 5)
 
-        await ClockCycles(dut.clk_i, 5)
+    regval = await master.read(address=regaddr)
+    regval = int(regval.value)
 
-        regval = await master.read(address=regaddr)
-        regval = int(regval.value)
-        dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
+    dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
 
-        assert regval == expval, (
-            f"Index {idx}: "
-            f"Expected {expval:#x} at address {regaddr:#x}, "
-            f"read {regval:#x}"
-        )
+    assert regval == expval, (
+        f"Test {test_id}:",
+        f"Expected {expval:#x} at address {regaddr:#x}, read {regval:#x}",
+    )
+
+
+async def digest_register(dut, test_id) -> None:
+    """Digest register access
+
+    Read operations are performed on the digest register.
+
+    """
+
+    await init(dut)
+
+    # Give a random value to the digest input
+    digest = randbits(DIGEST_WIDTH)
+
+    REGS_ADDR: List[int] = [
+        align(addr, BYTE_ALIGN) + DIGEST_ADDR
+        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
+    ]
+
+    SHL = 3 if BYTE_ALIGN else 5
+
+    regaddr: int = choice(REGS_ADDR)
+
+    nbits = (regaddr & 0xFF) << SHL
+    mask = ((1 << DATA_WIDTH) - 1) << nbits
+    expval = (digest & mask) >> nbits
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
+
+    await Timer(35, units="ns")
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await ClockCycles(dut.clk_i, 5)
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    dut.digest_i.value = digest
+
+    await ClockCycles(dut.clk_i, 5)
+
+    # Read operations on the digest register
+
+    regval = await master.read(address=regaddr)
+    regval = int(regval.value)
+
+    dut._log.debug(f"Digest: {digest:#x} with mask {mask:#x}")
+    dut._log.info(f"Register read with address = {regaddr:#x}.")
+
+    assert regval == expval
+
+    assert regval == expval, (
+        f"Test {test_id}:",
+        f"Expected {expval:#x} at address {regaddr:#x}, " f"read {regval:#x}",
+    )
+
+
+# Automatic tests generation depending on requested number of iterations
+
+cocotb_tests = [
+    block_registers_access,
+    invalid_block_registers_access,
+    strobe_block_registers_accesses,
+    digest_register,
+]
+
+for func_test in cocotb_tests:
+    factory = TestFactory(func_test)
+    factory.add_option(name="test_id", optionlist=range(ITERATIONS))
+    factory.generate_tests()
+
+
+# This test only needs one iteration
 
 
 @cocotb.test()
@@ -330,66 +397,6 @@ async def control_register(dut) -> None:
     assert dut.enable_hash_o.value == 0x0
 
     dut._log.debug(">> Hash deasserted by idle signal")
-
-
-@cocotb.test()
-async def digest_register(dut) -> None:
-    """Digest register access
-
-    Read operations are performed on the digest register.
-
-    """
-
-    await init(dut)
-
-    REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) + DIGEST_ADDR
-        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
-    ]
-
-    SHL = 3 if BYTE_ALIGN else 5
-
-    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
-
-    await Timer(35, units="ns")
-
-    # Turn off reset
-    dut.rst_ni.value = 1
-
-    await ClockCycles(dut.clk_i, 5)
-
-    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
-
-    # Give a random value to the digest input
-    digest = randbits(DIGEST_WIDTH)
-    dut.digest_i.value = digest
-
-    await ClockCycles(dut.clk_i, 5)
-
-    for idx in range(ITERATIONS):
-        # Write to a random register
-        regaddr: int = choice(REGS_ADDR)
-
-        nbits = (regaddr & 0xFF) << SHL
-        mask = ((1 << DATA_WIDTH) - 1) << nbits
-        expval = (digest & mask) >> nbits
-
-        # Read operations on the digest register
-
-        regval = await master.read(address=regaddr)
-        regval = int(regval.value)
-
-        dut._log.debug(f"Digest: {digest:#x} with mask {mask:#x}")
-
-        assert regval == expval
-
-        assert regval == expval, (
-            f"Index {idx}: "
-            f"Expected {expval:#x} at address {regaddr:#x}, "
-            f"read {regval:#x}"
-        )
 
 
 @pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
