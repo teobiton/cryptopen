@@ -1,49 +1,41 @@
 import cocotb
 from cocotb.triggers import Timer
 
-from typing import Dict
+from enum import Enum
+from typing import List
 
 
-SHA_MAPPING: Dict[str, str] = {
-    "reqdata": "sha_s_reqdata_i",
-    "reqaddr": "sha_s_reqaddr_i",
-    "reqvalid": "sha_s_reqvalid_i",
-    "reqwrite": "sha_s_reqwrite_i",
-    "reqready": "sha_s_reqready_o",
-    "reqstrobe": "sha_s_reqstrobe_i",
-    "rspready": "sha_s_rspready_i",
-    "rspvalid": "sha_s_rspvalid_o",
-    "rspdata": "sha_s_rspdata_o",
-    "rsperror": "sha_s_rsperror_o",
-}
+class fsm(Enum):
+    IDLE = 0x0
+    HASHING = 0x1
+    HOLD = 0x2
+    DONE = 0x3
 
 
 @cocotb.coroutine
-async def init(sha):
+async def init(dut):
     """Initialize input signals value"""
 
-    """ 
+    dut.block_i.value = 0
+    dut.enable_hash_i.value = 0
+    dut.rst_hash_i.value = 0
 
-    This would be the correct way to do it.
-    But verilator does not support it so the list must be maintained by hand.
-
-    for signal in dir(sha):
-        if signal.endswith('_i') and signal != "clk_i":
-            print(f"signal found = {signal}")
-            sha._id(signal, extended=False).value = 0 
-            
-    """
-
-    sha.sha_process_i.value = 0
-    sha.sha_digestack_i.value = 0
-
-    sha.sha_s_reqdata_i.value = 0
-    sha.sha_s_reqaddr_i.value = 0
-    sha.sha_s_reqvalid_i.value = 0
-    sha.sha_s_reqwrite_i.value = 0
-    sha.sha_s_reqstrobe_i.value = 0
-    sha.sha_s_rspready_i.value = 0
-
-    sha.rst_ni.value = 0
+    dut.rst_ni.value = 0
 
     await Timer(1, units="ns")
+
+
+def intblock(blocks: List[bytearray], index: int) -> int:
+    return int.from_bytes(blocks[index], byteorder="big")
+
+
+def round_computation(dut):
+    values = [
+        int(dut.a_q.value),
+        int(dut.b_q.value),
+        int(dut.c_q.value),
+        int(dut.d_q.value),
+        int(dut.e_q.value),
+    ]
+
+    return " ".join(format(x, "08x") for x in values)

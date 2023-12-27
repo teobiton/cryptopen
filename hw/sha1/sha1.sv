@@ -22,17 +22,12 @@ module sha1 #(
     input  logic                 sha_s_rspready_i,  // Response ready
     output logic                 sha_s_rspvalid_o,  // Response valid
     output logic [DataWidth-1:0] sha_s_rspdata_o,   // Data bus response
-    output logic                 sha_s_rsperror_o,  // Error response
-
-    input  logic                 sha_process_i,     // Start algorithm pulse
-    input  logic                 sha_digestack_i,   // Acknowledge digest
-    output logic [159:0]         sha_digest_o,      // Hash digest
-    output logic                 sha_digestvalid_o  // Hash digest valid
+    output logic                 sha_s_rsperror_o   // Error response
 );
 
     // SHA-1 internal parameters
     localparam int unsigned BlockWidth  = 512;
-    localparam int unsigned DigestWidth = 256;
+    localparam int unsigned DigestWidth = 160;
 
     logic [BlockWidth-1:0] sha_block;
 
@@ -55,21 +50,28 @@ module sha1 #(
         .rspvalid_o     ( sha_s_rspvalid_o  ),
         .rspdata_o      ( sha_s_rspdata_o   ),
         .rsperror_o     ( sha_s_rsperror_o  ),
-        .hold_i         (             1'b0  ),
-        .idle_i         (             1'b0  ),
-        .enable_hash_o  (                   ),
-        .reset_hash_o   (                   ),
+        .hold_i         ( hold              ),
+        .idle_i         ( idle              ),
+        .enable_hash_o  ( enable_hash       ),
+        .reset_hash_o   ( reset_hash        ),
         .block_o        ( sha_block         ),
-        .digest_i       (               '0  ),
-        .digest_valid_i (             1'b0  )
+        .digest_i       ( digest            ),
+        .digest_valid_i ( digest_valid      )
     );
 
-    // SHA-1 core
-    // ...
-    // inputs: sha_block, sha_regsvalid, sha_digestack
-    // outputs: digest, digest_valid, (computing ?)
-
-    assign sha_digest_o      = 160'('0);
-    assign sha_digestvalid_o = 1'b0;
+    sha1_core #(
+        .BlockWidth  ( BlockWidth  ),
+        .DigestWidth ( DigestWidth )
+    ) u_sha1_core (
+        .clk_i,
+        .rst_ni,
+        .block_i        ( sha_block    ),
+        .enable_hash_i  ( enable_hash  ),
+        .rst_hash_i     ( rst_hash     ),
+        .hold_o         ( hold         ),
+        .idle_o         ( idle         ),
+        .digest_o       ( digest       ),
+        .digest_valid_o ( digest_valid )
+    );
 
 endmodule
