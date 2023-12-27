@@ -10,7 +10,7 @@ on:
       - 'tb/**.py'
 
 env:
-  ITERATIONS: 100
+  ITERATIONS: 1000
   VERILATOR_VERSION: v5.006
 
 jobs:
@@ -20,7 +20,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"]
-        module: ["interface", "sha1", "sha2"]
 
     steps:
       - uses: actions/checkout@v3
@@ -46,6 +45,14 @@ jobs:
           make -j $(nproc)
           sudo make install
          
-      - name: Run ${{ matrix.module }} cocotb tests
+      - name: Run interface cocotb test suite
         run: |
-          ITERATIONS=${{ env.ITERATIONS }} pytest tb/${{ matrix.module }} -s --ignore=tb/${{ matrix.module }}/model
+          ITERATIONS=${{ env.ITERATIONS }} pytest tb/interface -vs
+
+      - name: Run sha1 cocotb test suite
+        run: |
+          pytest tb/interface -vs --ignore=tb/sha1/model
+
+      - name: Run sha2 cocotb test suite
+        run: |
+          pytest tb/interface -vs --ignore=tb/sha2/model
