@@ -41,6 +41,8 @@ class sha1:
         self._encoding: str = encoding
         self._debug: bool = debug
         self._dbg_hash_values: List[str] = []
+        self.round_computations = []
+        self.blocks = []
 
     def process(self, message: str) -> None:
         """Process a message"""
@@ -55,6 +57,7 @@ class sha1:
         # Process the message in 512-bit blocks
         for m in range(0, _l, 64):
             block: bytes = _pre_message[m : m + 64]
+            self.blocks.append(block)
             self._process_block(block)
             self._dbg_hash_values.append(self.digest())
 
@@ -94,6 +97,10 @@ class sha1:
 
         a, b, c, d, e = self._h
 
+        self.round_computations.append(
+            " ".join(format(x, "08x") for x in [a, b, c, d, e])
+        )
+
         for i in range(80):
             if i < 20:
                 f = ch(b, c, d)
@@ -114,6 +121,10 @@ class sha1:
                 left_rotate(b, 30),
                 c,
                 d,
+            )
+
+            self.round_computations.append(
+                " ".join(format(x, "08x") for x in [a, b, c, d, e])
             )
 
         self._h[0] = (self._h[0] + a) & 0xFFFFFFFF
