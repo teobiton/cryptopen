@@ -16,8 +16,8 @@ module sha512_core #(
     output logic                   hold_o,           // Hold state
     output logic                   idle_o,           // Idle state
 
-    output logic [DigestWidth-1:0] sha_digest_o,     // Hash digest
-    output logic                   sha_digestvalid_o // Hash digest valid
+    output logic [DigestWidth-1:0] digest_o,         // Hash digest
+    output logic                   digest_valid_o    // Hash digest valid
 );
 
     // Finite state machine to control hashing
@@ -95,7 +95,7 @@ module sha512_core #(
     };
 
     // SHA-512 function to compute new words
-    function automatic logic [63:0] fword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
+    function automatic logic [63:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
         int idx0 = ~(32'(cntr) - 15) & 32'hf;
         int idx1 = ~(32'(cntr) - 7) & 32'hf;
         int idx2 = ~(32'(cntr) - 2) & 32'hf;
@@ -120,14 +120,15 @@ module sha512_core #(
 
         return word;
 
-    endfunction : fword
+    endfunction : hword
 
     // detect end of message
     function automatic logic eom(input logic [63:0] word);
-        logic eom = 1'b0;
+        logic e = 1'b0;
         for(int b = 0; b < 8; b++) begin
-            eom |= (word[b*8 +: 8] == 8'h80);
+            e |= (word[b*8 +: 8] == 8'h80);
         end
+        return e;
     endfunction : eom
 
     logic [BlockWidth-1:0] word_mem, word_mem_q;
@@ -288,7 +289,7 @@ module sha512_core #(
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
-                        word = fword(word_mem, round_cntr);
+                        word = hword(word_mem, round_cntr);
                         word_mem[~round_cntr[3:0]*64 +: 64] = word;
                     end
 
@@ -411,7 +412,7 @@ module sha512_core #(
 
     // user available data is computed here
     // digest valid bit and digest on 512, 384, 256 or 224 bits
-    assign sha_digestvalid_o = digest_valid_q;
-    assign sha_digest_o      = digest_q[511:512-DigestWidth];
+    assign digest_valid_o = digest_valid_q;
+    assign digest_o       = digest_q[511:512-DigestWidth];
 
 endmodule
