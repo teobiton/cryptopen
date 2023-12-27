@@ -1,0 +1,1 @@
+`define SPARTAN7

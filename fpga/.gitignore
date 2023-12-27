@@ -1,0 +1,9 @@
+tmp/
+*.ucdb
+*.log
+*.out
+*.jou
+*.xpr
+work-dir/*
+cryptopen*/
+reports/
