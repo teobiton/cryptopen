@@ -23,18 +23,18 @@ module sha256 #(
     input  logic                 sha_s_rspready_i,  // Response ready
     output logic                 sha_s_rspvalid_o,  // Response valid
     output logic [DataWidth-1:0] sha_s_rspdata_o,   // Data bus response
-    output logic                 sha_s_rsperror_o,  // Error response
+    output logic                 sha_s_rsperror_o   // Error response
 );
 
     // SHA-256 internal parameters
     localparam int unsigned BlockWidth  = 512;
-    localparam int unsigned DigestWidth = (SHA224) ? 224 : 256;
+    localparam int unsigned DigestWidth = 256;
 
     logic [BlockWidth-1:0] sha_block;
 
-    logic enable_hash
+    logic enable_hash;
     logic rst_hash;
-    logic idle
+    logic idle;
     logic hold;
 
     logic [DigestWidth-1:0] digest;
@@ -80,7 +80,7 @@ module sha256 #(
         .hold_o         ( hold         ),
         .idle_o         ( idle         ),
         .digest_o       ( digest       ),
-        .digest_valid_o ( digest_valid ),
+        .digest_valid_o ( digest_valid )
     );
 
 endmodule

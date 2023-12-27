@@ -140,7 +140,7 @@ async def one_block_message(dut) -> None:
         await RisingEdge(dut.clk_i)
 
     await RisingEdge(dut.clk_i)
-    digest: str = f"{int(dut.sha_digest_o.value):x}"
+    digest: str = f"{int(dut.digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
     assert digest == model.digest().lstrip(
@@ -195,7 +195,7 @@ async def multi_blocks_message(dut) -> None:
                 break
             await RisingEdge(dut.clk_i)
 
-    digest: str = f"{int(dut.sha_digest_o.value):x}"
+    digest: str = f"{int(dut.digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
     assert digest == model.digest().lstrip(
@@ -248,7 +248,7 @@ async def long_random_message(dut) -> None:
                 break
             await RisingEdge(dut.clk_i)
 
-    digest: str = f"{int(dut.sha_digest_o.value):x}"
+    digest: str = f"{int(dut.digest_o.value):x}"
 
     # Compare hash values at the end of current cycle
     assert digest == model.digest().lstrip(
