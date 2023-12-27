@@ -17,7 +17,7 @@ The cryptopen project is organized as following:
 - tb  - Testbenches for the RTL files using Cocotb
 - doc - documentation with high-level specification and technical documents
 
-The *hw* folder contains the top-level implementations as well as submodules in *prim*.
+The *hw* folder contains the top-level implementations.
 The primitives are algorithmic functions that are used in several places.
 
 ## Cocotb
