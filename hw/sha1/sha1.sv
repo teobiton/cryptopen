@@ -1,3 +1,7 @@
+// Copyright 2023 - cryptopen contributors 
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 // ------------------------------------------------------
 //  Module name: SHA-1
 //  Description: SHA-1 block with register inteface

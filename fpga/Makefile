@@ -1,3 +1,7 @@
+# Copyright 2023 - cryptopen contributors 
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
 # board name for bitstream generation. Currently supported: genesys2
 BOARD       ?= spartan7
 # Top level module to compile
