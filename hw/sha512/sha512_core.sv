@@ -361,7 +361,6 @@ module sha512_core #(
         if (~rst_ni) begin
             current_state  <= IDLE;
             round_cntr_q   <= '0;
-            digest_valid_q <= 1'b0;
             eom_captured_q <= 1'b0;
             hash_flag_q    <= 1'b0;
             a_q            <= H0;
@@ -375,7 +374,7 @@ module sha512_core #(
         end else begin
             current_state  <= next_state;
             round_cntr_q   <= round_cntr;
-            digest_valid_q <= digest_valid;
+
             eom_captured_q <= eom_captured;
             hash_flag_q    <= hash_flag;
             a_q            <= a;
