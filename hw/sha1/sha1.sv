@@ -34,6 +34,14 @@ module sha1 #(
     localparam int unsigned DigestWidth = 160;
 
     logic [BlockWidth-1:0] sha_block;
+    
+    logic enable_hash;
+    logic rst_hash;
+    logic idle;
+    logic hold;
+
+    logic [DigestWidth-1:0] digest;
+    logic                   digest_valid;
 
     simple_reg_interface #(
         .DataWidth   ( DataWidth   ),
