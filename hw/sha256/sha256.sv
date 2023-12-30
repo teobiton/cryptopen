@@ -37,7 +37,7 @@ module sha256 #(
     logic [BlockWidth-1:0] sha_block;
 
     logic enable_hash;
-    logic rst_hash;
+    logic reset_hash;
     logic idle;
     logic hold;
 
@@ -80,7 +80,7 @@ module sha256 #(
         .rst_ni,
         .block_i        ( sha_block    ),
         .enable_hash_i  ( enable_hash  ),
-        .rst_hash_i     ( rst_hash     ),
+        .rst_hash_i     ( reset_hash   ),
         .hold_o         ( hold         ),
         .idle_o         ( idle         ),
         .digest_o       ( digest       ),
