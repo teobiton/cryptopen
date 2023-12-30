@@ -29,11 +29,12 @@ fpga_src = $(acc_src) $(itf_src)
 ifeq ($(BOARD), genesys2)
 	XILINX_PART   := xc7k325tffg900-2
 	XILINX_BOARD  := digilentinc.com:genesys2:part0:1.1
-	CLK_PERIOD_NS := 10
 else ifeq ($(BOARD), spartan7)
 	XILINX_PART   := xc7s100fgga676-2
 	XILINX_BOARD  := xilinx.com:sp701:part0:1.0
-	CLK_PERIOD_NS := 10
+else ifeq ($(BOARD), artix7)
+	XILINX_PART   := xc7a200tfbg676-2
+	XILINX_BOARD  := xilinx.com:ac701:part0:1.4
 else
 $(error Unknown board - supported: genesys2, spartan7)
 endif
