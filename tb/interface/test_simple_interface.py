@@ -15,6 +15,8 @@ from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 from bus.master import Master
+from utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, MAPPING
+from utils import align
 
 ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
@@ -27,25 +29,6 @@ if cocotb.simulator.is_running():
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
     DIGEST_WIDTH = int(cocotb.top.DigestWidth)
-
-# Base addresses
-CTRL_ADDR = 0x000
-BLOCK_ADDR = 0x100
-DIGEST_ADDR = 0x200
-
-
-MAPPING: Dict[str, str] = {
-    "reqdata": "reqdata_i",
-    "reqaddr": "reqaddr_i",
-    "reqvalid": "reqvalid_i",
-    "reqwrite": "reqwrite_i",
-    "reqready": "reqready_o",
-    "reqstrobe": "reqstrobe_i",
-    "rspready": "rspready_i",
-    "rspvalid": "rspvalid_o",
-    "rspdata": "rspdata_o",
-    "rsperror": "rsperror_o",
-}
 
 
 @cocotb.coroutine
@@ -76,11 +59,6 @@ async def init(dut):
     dut.rst_ni.value = 0
 
     await Timer(1, units="ns")
-
-
-def align(addr: int, bytealign: bool):
-    step = 8 if bytealign else 32
-    return int(addr / step)
 
 
 def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> int:

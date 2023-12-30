@@ -60,3 +60,7 @@ jobs:
       - name: Run sha2 cocotb test suite
         run: |
           pytest tb/sha2 -vs --ignore=tb/sha2/model
+
+      - name: Run all IPs top-level test suite
+        run: |
+          pytest tb/test_tops.py -vs
