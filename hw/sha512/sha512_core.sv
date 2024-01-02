@@ -102,35 +102,30 @@ module sha512_core #(
     };
 
     // SHA-512 function to compute new words
-    function automatic logic [63:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
-        int idx0 = (32'(cntr) - 15) & 32'hf;
-        int idx1 = (32'(cntr) - 7) & 32'hf;
-        int idx2 = (32'(cntr) - 2) & 32'hf;
-        int idx3 = (32'(cntr) - 16) & 32'hf;
+    function automatic logic [WordSize-1:0] hword(input logic [BlockWidth-1:0] block);
+        longint w01 = block[1*WordSize  +: WordSize];
+        longint w09 = block[9*WordSize  +: WordSize];
+        longint w14 = block[14*WordSize +: WordSize];
+        longint w00 = block[0*WordSize  +: WordSize];
 
-        longint w0 = block[idx0 << 6 +: 64];
-        longint w1 = block[idx1 << 6 +: 64];
-        longint w2 = block[idx2 << 6 +: 64];
-        longint w3 = block[idx3 << 6 +: 64];
+        longint t_w01 = {w01[0],   w01[WordSize-1:1]}
+                      ^ {w01[7:0], w01[WordSize-1:8]}
+                      ^ w01 >> 7;
 
-        longint word0 = {w0[0], w0[63:1]}
-                      ^ {w0[7:0], w0[63:8]}
-                      ^ w0 >> 7;
+        longint t_w14 = {w14[18:0], w14[WordSize-1:19]}
+                      ^ {w14[60:0], w14[WordSize-1:61]}
+                      ^ w14 >> 6;
 
-        longint word1 = {w2[18:0], w2[63:19]}
-                      ^ {w2[60:0], w2[63:61]}
-                      ^ w2 >> 6;
+        logic [WordSize-1:0] word;
 
-        logic [63:0] word;
-
-        word = w3 + word0 + w1 + word1;
+        word = w00 + t_w01 + w09 + t_w14;
 
         return word;
 
     endfunction : hword
 
     // detect end of message
-    function automatic logic eom(input logic [63:0] word);
+    function automatic logic eom(input logic [WordSize-1:0] word);
         logic e = 1'b0;
         for(int b = 0; b < 8; b++) begin
             e |= (word[b*8 +: 8] == 8'h80);
@@ -149,11 +144,11 @@ module sha512_core #(
 
     logic [6:0]  round_cntr, round_cntr_q;
 
-    logic [63:0] h0, h1, h2, h3, h4, h5, h6, h7;
-    logic [63:0] a, b, c, d, e, f, g, h, k;
-    logic [63:0] a_q, b_q, c_q, d_q, e_q, f_q, g_q, h_q;
-    logic [63:0] maj, ch, s0, s1, t0, t1;
-    logic [63:0] word;
+    logic [WordSize-1:0] h0, h1, h2, h3, h4, h5, h6, h7;
+    logic [WordSize-1:0] a, b, c, d, e, f, g, h, k;
+    logic [WordSize-1:0] a_q, b_q, c_q, d_q, e_q, f_q, g_q, h_q;
+    logic [WordSize-1:0] maj, ch, s0, s1, t0, t1;
+    logic [WordSize-1:0] word;
 
     sha_fsm_e current_state, next_state;
 
@@ -182,8 +177,8 @@ module sha512_core #(
     assign k   = K[round_cntr_q[6:0]];
     assign maj = (a_q & b_q) ^ (a_q & c_q) ^ (b_q & c_q);
     assign ch  = (e_q & f_q) ^ (~e_q & g_q);
-    assign s0  = {a_q[27:0], a_q[63:28]} ^ {a_q[33:0], a_q[63:34]} ^ {a_q[38:0], a_q[63:39]};
-    assign s1  = {e_q[13:0], e_q[63:14]} ^ {e_q[17:0], e_q[63:18]} ^ {e_q[40:0], e_q[63:41]};
+    assign s0  = {a_q[27:0], a_q[WordSize-1:28]} ^ {a_q[33:0], a_q[WordSize-1:34]} ^ {a_q[38:0], a_q[WordSize-1:39]};
+    assign s1  = {e_q[13:0], e_q[WordSize-1:14]} ^ {e_q[17:0], e_q[WordSize-1:18]} ^ {e_q[40:0], e_q[WordSize-1:41]};
     assign t0  = (h_q + s1 + ch + k + word);
     assign t1  = (s0 + maj);
 
@@ -293,14 +288,14 @@ module sha512_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = word_mem[round_cntr_q[3:0]*64 +: 64];
+                        word = word_mem[round_cntr_q[3:0]*WordSize +: WordSize];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
-                        word = hword(word_mem, round_cntr);
-                        word_mem[round_cntr[3:0]*64 +: 64] = word;
+                        word = hword(word_mem);
+                        word_mem = {word, word_mem_q[BlockWidth-1:WordSize]};
                     end
 
                     {a, b, c, d, e, f, g, h} = {

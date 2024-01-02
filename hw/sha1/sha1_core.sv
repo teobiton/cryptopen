@@ -43,29 +43,25 @@ module sha1_core #(
     integer H4 = 32'hc3d2e1f0;
 
     // SHA-1 function to compute new words
-    function automatic logic [31:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
-        int idx0 = (32'(cntr) - 3) & 32'hf;
-        int idx1 = (32'(cntr) - 8) & 32'hf;
-        int idx2 = (32'(cntr) - 14) & 32'hf;
-        int idx3 = (32'(cntr) - 16) & 32'hf;
+    function automatic logic [WordSize-1:0] hword(input logic [BlockWidth-1:0] block);
 
-        int w0 = block[idx0 << 5 +: 32];
-        int w1 = block[idx1 << 5 +: 32];
-        int w2 = block[idx2 << 5 +: 32];
-        int w3 = block[idx3 << 5 +: 32];
+        int w00 = block[0*WordSize   +: WordSize];
+        int w02 = block[2*WordSize   +: WordSize];
+        int w08 = block[8*WordSize   +: WordSize];
+        int w13 = block[13*WordSize  +: WordSize];
 
-        int temp_word = w0 ^ w1 ^ w2 ^ w3;
+        int temp_word = w00 ^ w02 ^ w08 ^ w13;
 
-        logic [31:0] word;
+        logic [WordSize-1:0] word;
 
-        word = {temp_word[30:0], temp_word[31]};
+        word = {temp_word[30:0], temp_word[WordSize-1]};
 
         return word;
 
     endfunction : hword
 
     // detect end of message
-    function automatic logic eom(input logic [31:0] word);
+    function automatic logic eom(input logic [WordSize-1:0] word);
         logic e = 1'b0;
         for(int b = 0; b < 4; b++) begin
             e |= (word[b*8 +: 8] == 8'h80);
@@ -84,11 +80,11 @@ module sha1_core #(
 
     logic [6:0]  round_cntr, round_cntr_q;
 
-    logic [31:0] h0, h1, h2, h3, h4;
-    logic [31:0] a, b, c, d, e;
-    logic [31:0] a_q, b_q, c_q, d_q, e_q;
-    logic [31:0] f, k, t0, t1;
-    logic [31:0] word;
+    logic [WordSize-1:0] h0, h1, h2, h3, h4;
+    logic [WordSize-1:0] a, b, c, d, e;
+    logic [WordSize-1:0] a_q, b_q, c_q, d_q, e_q;
+    logic [WordSize-1:0] f, k, t0, t1;
+    logic [WordSize-1:0] word;
 
     sha_fsm_e current_state, next_state;
 
@@ -115,7 +111,7 @@ module sha1_core #(
     assign hash_flag = (eom_flag & len_bound) | hash_flag_q & ~unset_hash_flag;
 
     // values used during hashing
-    assign t0  = {a_q[26:0], a_q[31:27]};
+    assign t0  = {a_q[26:0], a_q[WordSize-1:27]};
     assign t1  = (t0 + f + e_q + k + word);
 
     always_comb begin : sha_control
@@ -211,14 +207,14 @@ module sha1_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = word_mem[round_cntr_q[3:0]*32 +: 32];
+                        word = word_mem[round_cntr_q[3:0]*WordSize +: WordSize];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
-                        word = hword(word_mem, round_cntr);
-                        word_mem[round_cntr[3:0]*32 +: 32] = word;
+                        word = hword(word_mem);
+                        word_mem = {word, word_mem_q[BlockWidth-1:WordSize]};
                     end
 
                     if (round_cntr_q <= 19) begin
@@ -238,7 +234,7 @@ module sha1_core #(
                     {a, b, c, d, e} = {
                         t1,
                         a_q,
-                        {b_q[1:0], b_q[31:2]},
+                        {b_q[1:0], b_q[WordSize-1:2]},
                         c_q,
                         d_q
                     };
