@@ -284,9 +284,6 @@ def test_sha256_core(core, DigestWidth):
     if SIM == "verilator" and WAVES == "1":
         extra_args = ["--trace", "--trace-structs"]
 
-    # 2 warnings disallow testbench to run, waive them for now
-    extra_args.append("-Wno-WIDTH")
-
     parameters: Dict[str, str] = {}
 
     parameters["DigestWidth"] = DigestWidth

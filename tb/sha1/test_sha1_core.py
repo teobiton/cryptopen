@@ -261,9 +261,6 @@ def test_sha1_core():
     if SIM == "verilator" and WAVES == "1":
         extra_args = ["--trace", "--trace-structs"]
 
-    # 2 warnings disallow testbench to run, waive them for now
-    extra_args.append("-Wno-WIDTH")
-
     parameters: Dict[str, str] = {}
 
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
