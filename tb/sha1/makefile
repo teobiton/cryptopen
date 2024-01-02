@@ -22,6 +22,6 @@ MODULE = test_sha1_core
 VERILOG_SOURCES = $(SHA_DIRECTORY)/sha1_core.sv
 
 # Verilator extra arguments to build waves
-EXTRA_ARGS += --trace --trace-structs -Wno-WIDTH
+EXTRA_ARGS += --trace --trace-structs
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
