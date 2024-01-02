@@ -32,6 +32,9 @@ module sha1_core #(
         DONE    = 2'h3
     } sha_fsm_e;
 
+    localparam int WordSize = 32;
+    localparam int NumWords = BlockWidth / WordSize;
+
     // SHA-1 digest initial values
     integer H0 = 32'h67452301;
     integer H1 = 32'hefcdab89;
@@ -41,10 +44,10 @@ module sha1_core #(
 
     // SHA-1 function to compute new words
     function automatic logic [31:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
-        int idx0 = ~(32'(cntr) - 3) & 32'hf;
-        int idx1 = ~(32'(cntr) - 8) & 32'hf;
-        int idx2 = ~(32'(cntr) - 14) & 32'hf;
-        int idx3 = ~(32'(cntr) - 16) & 32'hf;
+        int idx0 = (32'(cntr) - 3) & 32'hf;
+        int idx1 = (32'(cntr) - 8) & 32'hf;
+        int idx2 = (32'(cntr) - 14) & 32'hf;
+        int idx3 = (32'(cntr) - 16) & 32'hf;
 
         int w0 = block[idx0 << 5 +: 32];
         int w1 = block[idx1 << 5 +: 32];
@@ -103,7 +106,7 @@ module sha1_core #(
     // round is between cycles 16 and 80
     assign round_16 = |round_cntr_q[6:4];
     // end of message must be before 448th bit
-    assign len_bound = (round_cntr_q[3:0] inside {4'hf, 4'he});
+    assign len_bound = (round_cntr_q[6:0] inside {7'he, 7'hf});
     // detect end of message byte
     assign eom_flag = eom(word);
     // round counter == 64
@@ -160,7 +163,10 @@ module sha1_core #(
                 digest_valid = 1'b0;
                 round_cntr   = '0;
 
-                word_mem     = block_i;
+                for (int w = 0; w < NumWords; w++) begin
+                    word_mem[w*WordSize +: WordSize] = block_i[(NumWords-w)*WordSize-1 -: WordSize];
+                end
+
                 eom_captured = 1'b0;
 
                 // start hashing next cycle if enabled
@@ -205,14 +211,14 @@ module sha1_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = word_mem[~round_cntr_q[3:0]*32 +: 32];
+                        word = word_mem[round_cntr_q[3:0]*32 +: 32];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
                         word = hword(word_mem, round_cntr);
-                        word_mem[~round_cntr[3:0]* 32 +: 32] = word;
+                        word_mem[round_cntr[3:0]*32 +: 32] = word;
                     end
 
                     if (round_cntr_q <= 19) begin
@@ -258,7 +264,9 @@ module sha1_core #(
                     next_state = IDLE;
                 // if enable, accept block input and go to hashing
                 end else if (enable_hash) begin
-                    word_mem   = block_i;
+                    for (int w = 0; w < NumWords; w++) begin
+                        word_mem[w*WordSize +: WordSize] = block_i[(NumWords-w)*WordSize-1 -: WordSize];
+                    end
                     next_state = HASHING;
                 end
 

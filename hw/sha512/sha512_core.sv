@@ -32,6 +32,9 @@ module sha512_core #(
         DONE    = 2'h3
     } sha_fsm_e;
 
+    localparam int WordSize = 64;
+    localparam int NumWords = BlockWidth / WordSize;
+
     // SHA-512/224, SHA-512/256, SHA-384, SHA-512 digest initial values
     localparam longint H0 = (DigestWidth == 224) ? 64'h8c3d37c819544da2
                           : (DigestWidth == 256) ? 64'h22312194fc2bf72c
@@ -100,10 +103,10 @@ module sha512_core #(
 
     // SHA-512 function to compute new words
     function automatic logic [63:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
-        int idx0 = ~(32'(cntr) - 15) & 32'hf;
-        int idx1 = ~(32'(cntr) - 7) & 32'hf;
-        int idx2 = ~(32'(cntr) - 2) & 32'hf;
-        int idx3 = ~(32'(cntr) - 16) & 32'hf;
+        int idx0 = (32'(cntr) - 15) & 32'hf;
+        int idx1 = (32'(cntr) - 7) & 32'hf;
+        int idx2 = (32'(cntr) - 2) & 32'hf;
+        int idx3 = (32'(cntr) - 16) & 32'hf;
 
         longint w0 = block[idx0 << 6 +: 64];
         longint w1 = block[idx1 << 6 +: 64];
@@ -167,7 +170,7 @@ module sha512_core #(
     // round is between cycles 16 and 80
     assign round_16 = |round_cntr_q[6:4];
     // end of message must be before 896th bit
-    assign len_bound = (round_cntr_q[3:0] inside {4'hf, 4'he});
+    assign len_bound = (round_cntr_q[6:0] inside {7'he, 7'hf});
     // detect end of message byte
     assign eom_flag = eom(word);
     // round counter == 80
@@ -236,7 +239,10 @@ module sha512_core #(
                 digest_valid = 1'b0;
                 round_cntr   = '0;
 
-                word_mem     = block_i;
+                for (int w = 0; w < NumWords; w++) begin
+                    word_mem[w*WordSize +: WordSize] = block_i[(NumWords-w)*WordSize-1 -: WordSize];
+                end
+
                 eom_captured = 1'b0;
 
                 // start hashing next cycle if enabled
@@ -287,14 +293,14 @@ module sha512_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = word_mem[~round_cntr_q[3:0]*64 +: 64];
+                        word = word_mem[round_cntr_q[3:0]*64 +: 64];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
                         word = hword(word_mem, round_cntr);
-                        word_mem[~round_cntr[3:0]*64 +: 64] = word;
+                        word_mem[round_cntr[3:0]*64 +: 64] = word;
                     end
 
                     {a, b, c, d, e, f, g, h} = {
@@ -329,7 +335,9 @@ module sha512_core #(
                     next_state = IDLE;
                 // if enable, accept block input and go to hashing
                 end else if (enable_hash) begin
-                    word_mem   = block_i;
+                    for (int w = 0; w < NumWords; w++) begin
+                        word_mem[w*WordSize +: WordSize] = block_i[(NumWords-w)*WordSize-1 -: WordSize];
+                    end
                     next_state = HASHING;
                 end
 
