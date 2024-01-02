@@ -66,35 +66,30 @@ module sha256_core #(
     };
 
     // SHA-256 function to compute new words
-    function automatic logic [31:0] hword(input logic [BlockWidth-1:0] block, logic [6:0] cntr);
-        int idx0 = (32'(cntr) - 15) & 32'hf;
-        int idx1 = (32'(cntr) - 7) & 32'hf;
-        int idx2 = (32'(cntr) - 2) & 32'hf;
-        int idx3 = (32'(cntr) - 16) & 32'hf;
+    function automatic logic [WordSize-1:0] hword(input logic [BlockWidth-1:0] block);
+        int w01 = block[1*WordSize  +: WordSize];
+        int w09 = block[9*WordSize  +: WordSize];
+        int w14 = block[14*WordSize +: WordSize];
+        int w00 = block[0*WordSize  +: WordSize];
 
-        int w0 = block[idx0 << 5 +: 32];
-        int w1 = block[idx1 << 5 +: 32];
-        int w2 = block[idx2 << 5 +: 32];
-        int w3 = block[idx3 << 5 +: 32];
+        int word0 = {w01[06:0], w01[WordSize-1:07]}
+                  ^ {w01[17:0], w01[WordSize-1:18]}
+                  ^ w01 >> 3;
 
-        int word0 = {w0[6:0], w0[31:7]}
-                  ^ {w0[17:0], w0[31:18]}
-                  ^ w0 >> 3;
+        int word1 = {w14[16:0], w14[WordSize-1:17]}
+                  ^ {w14[18:0], w14[WordSize-1:19]}
+                  ^ w14 >> 10;
 
-        int word1 = {w2[16:0], w2[31:17]}
-                  ^ {w2[18:0], w2[31:19]}
-                  ^ w2 >> 10;
+        logic [WordSize-1:0] word;
 
-        logic [31:0] word;
-
-        word = w3 + word0 + w1 + word1;
+        word = w00 + word0 + w09 + word1;
 
         return word;
 
     endfunction : hword
 
     // detect end of message
-    function automatic logic eom(input logic [31:0] word);
+    function automatic logic eom(input logic [WordSize-1:0] word);
         logic e = 1'b0;
         for(int b = 0; b < 4; b++) begin
             e |= (word[b*8 +: 8] == 8'h80);
@@ -113,11 +108,11 @@ module sha256_core #(
 
     logic [6:0]  round_cntr, round_cntr_q;
 
-    logic [31:0] h0, h1, h2, h3, h4, h5, h6, h7;
-    logic [31:0] a, b, c, d, e, f, g, h, k;
-    logic [31:0] a_q, b_q, c_q, d_q, e_q, f_q, g_q, h_q;
-    logic [31:0] maj, ch, s0, s1, t0, t1;
-    logic [31:0] word;
+    logic [WordSize-1:0] h0, h1, h2, h3, h4, h5, h6, h7;
+    logic [WordSize-1:0] a, b, c, d, e, f, g, h, k;
+    logic [WordSize-1:0] a_q, b_q, c_q, d_q, e_q, f_q, g_q, h_q;
+    logic [WordSize-1:0] maj, ch, s0, s1, t0, t1;
+    logic [WordSize-1:0] word;
 
     sha_fsm_e current_state, next_state;
 
@@ -146,8 +141,8 @@ module sha256_core #(
     assign k   = K[round_cntr_q[5:0]];
     assign maj = (a_q & b_q) ^ (a_q & c_q) ^ (b_q & c_q);
     assign ch  = (e_q & f_q) ^ (~e_q & g_q);
-    assign s1  = {e_q[5:0], e_q[31:6]} ^ {e_q[10:0], e_q[31:11]} ^ {e_q[24:0], e_q[31:25]};
-    assign s0  = {a_q[1:0], a_q[31:2]} ^ {a_q[12:0], a_q[31:13]} ^ {a_q[21:0], a_q[31:22]};
+    assign s1  = {e_q[5:0], e_q[WordSize-1:6]} ^ {e_q[10:0], e_q[WordSize-1:11]} ^ {e_q[24:0], e_q[WordSize-1:25]};
+    assign s0  = {a_q[1:0], a_q[WordSize-1:2]} ^ {a_q[12:0], a_q[WordSize-1:13]} ^ {a_q[21:0], a_q[WordSize-1:22]};
     assign t0  = (h_q + s1 + ch + k + word);
     assign t1  = (s0 + maj);
 
@@ -257,14 +252,14 @@ module sha256_core #(
                 end else begin
 
                     if (~round_16) begin
-                        word = word_mem[round_cntr_q[3:0]*32 +: 32];
+                        word = word_mem[round_cntr_q[3:0]*WordSize +: WordSize];
                         // last cycle if byte 0x80 is seen in range
                         eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
-                        word = hword(word_mem, round_cntr);
-                        word_mem[round_cntr[3:0]*32 +: 32] = word;
+                        word = hword(word_mem);
+                        word_mem = {word, word_mem_q[BlockWidth-1:WordSize]};
                     end
 
                     {a, b, c, d, e, f, g, h} = {
