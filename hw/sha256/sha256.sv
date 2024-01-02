@@ -8,11 +8,11 @@
 // ------------------------------------------------------
 
 module sha256 #(
-    parameter bit          SHA224    = 0,
-    parameter int unsigned DataWidth = 64,
-    parameter int unsigned AddrWidth = 32,
-    parameter int unsigned DataBytes = DataWidth >> 3,
-    parameter bit          ByteAlign = 1
+    parameter int unsigned DataWidth   = 64,
+    parameter int unsigned AddrWidth   = 32,
+    parameter int unsigned DataBytes   = DataWidth >> 3,
+    parameter bit          ByteAlign   = 1,
+    parameter int unsigned DigestWidth = 256
 ) (
     input  logic                 clk_i,             // Clock
     input  logic                 rst_ni,            // Reset
@@ -31,8 +31,7 @@ module sha256 #(
 );
 
     // SHA-256 internal parameters
-    localparam int unsigned BlockWidth  = 512;
-    localparam int unsigned DigestWidth = 256;
+    localparam int unsigned BlockWidth = 512;
 
     logic [BlockWidth-1:0] sha_block;
 
