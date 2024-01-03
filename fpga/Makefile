@@ -2,13 +2,6 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Board name for synthesis and implementation
-BOARD       ?= spartan7
-# Top level module to compile
-TOP_LEVEL   ?= sha256
-# Interface choice
-INTERFACE   ?= simple
-
 # root path
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 fpga-dir := $(dir $(mkfile_path))
@@ -16,15 +9,9 @@ root-dir := $(fpga-dir)..
 
 scripts-dir := $(fpga-dir)/scripts
 hw-dir      := $(root-dir)/hw
-itf-dir     := $(hw-dir)/interface
-acc-dir     := $(hw-dir)/$(TOP_LEVEL)
 
-acc_src := $(acc-dir)/$(TOP_LEVEL).sv \
-           $(acc-dir)/$(TOP_LEVEL)_core.sv
-
-itf_src := $(itf-dir)/$(INTERFACE)_reg_interface.sv
-
-fpga_src = $(acc_src) $(itf_src)
+# Board name for synthesis and implementation
+BOARD       ?= spartan7
 
 ifeq ($(BOARD), genesys2)
 	XILINX_PART   := xc7k325tffg900-2
@@ -39,24 +26,60 @@ else
 $(error Unknown board - supported: genesys2, spartan7)
 endif
 
+# Interface choice
+INTERFACE   ?= simple
+
 _supported_itf = simple
 
 ifeq ($(filter $(INTERFACE), $(_supported_itf)),)
 $(error Unknown interface protocol - supported: $(_supported_itf))
 endif
 
+# Top level module to compile
+TOP_LEVEL  ?= sha256
+# Default parameters
+DATA_WIDTH ?= 64
+ADDR_WIDTH ?= 32
+BYTE_ALIGN ?= 1
+DIGEST_WIDTH ?= 256
+
+acc-dir := $(hw-dir)/$(TOP_LEVEL)
+itf-dir := $(hw-dir)/interface
+
+acc_src := $(acc-dir)/$(TOP_LEVEL).sv \
+		   $(acc-dir)/$(TOP_LEVEL)_core.sv
+
+itf_src := $(itf-dir)/$(INTERFACE)_reg_interface.sv
+
+fpga_src = $(acc_src) $(itf_src)
+
+# Vivado cmd and flags
 VIVADO ?= vivado
 VIVADOFLAGS ?= -nojournal -mode batch -source $(scripts-dir)/project.tcl
+
+# Tcl arguments
+TCLARGS = -tclargs \
+		  top_level=$(TOP_LEVEL)   \
+		  part=$(XILINX_PART)      \
+		  board=$(XILINX_BOARD)    \
+		  data_width=$(DATA_WIDTH) \
+		  addr_width=$(ADDR_WIDTH) \
+		  byte_align=$(BYTE_ALIGN) \
+		  digest_width=$(DIGEST_WIDTH)
 
 fpga:
 	@echo "[FPGA] Generate sources"
 	@echo read_verilog -sv {$(acc_src)} > $(scripts-dir)/read_rtl_sources.tcl
 	@echo read_verilog -sv {$(itf_src)} >> $(scripts-dir)/read_rtl_sources.tcl
 	@echo "[FPGA] Run synthesis, implementation and generate bitstream"
-	TOP_LEVEL=$(TOP_LEVEL) \
-	BOARD=$(BOARD) XILINX_PART=$(XILINX_PART) \
-	XILINX_BOARD=$(XILINX_BOARD) CLK_PERIOD_NS=$(CLK_PERIOD_NS) \
-	$(VIVADO) $(VIVADOFLAGS) -source $(scripts-dir)/run.tcl
+	@echo "[FPGA] Top level = $(TOP_LEVEL)"
+	@echo "[FPGA] Board = $(BOARD)"
+	@echo "[FPGA] RTL parameters :"
+	@echo "       DataWidth = $(DATA_WIDTH)"
+	@echo "       AddrWidth = $(ADDR_WIDTH)"
+	@echo "       ByteAlign = $(BYTE_ALIGN)"
+	@echo "       DigestWidth = $(DIGEST_WIDTH) (unused in SHA-1 implementation)"
+	$(VIVADO) $(VIVADOFLAGS) -source $(scripts-dir)/run.tcl $(TCLARGS)
 
 .PHONY: fpga
 
