@@ -72,17 +72,17 @@ module sha256_core #(
         int w14 = block[14*WordSize +: WordSize];
         int w00 = block[0*WordSize  +: WordSize];
 
-        int word0 = {w01[06:0], w01[WordSize-1:07]}
-                  ^ {w01[17:0], w01[WordSize-1:18]}
-                  ^ w01 >> 3;
+        int t_w0 = {w01[06:0], w01[WordSize-1:07]}
+                 ^ {w01[17:0], w01[WordSize-1:18]}
+                 ^ w01 >> 3;
 
-        int word1 = {w14[16:0], w14[WordSize-1:17]}
-                  ^ {w14[18:0], w14[WordSize-1:19]}
-                  ^ w14 >> 10;
+        int t_w1 = {w14[16:0], w14[WordSize-1:17]}
+                 ^ {w14[18:0], w14[WordSize-1:19]}
+                 ^ w14 >> 10;
 
         logic [WordSize-1:0] word;
 
-        word = w00 + word0 + w09 + word1;
+        word = w00 + t_w0 + w09 + t_w1;
 
         return word;
 

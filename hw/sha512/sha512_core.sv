@@ -377,7 +377,6 @@ module sha512_core #(
         end else begin
             current_state  <= next_state;
             round_cntr_q   <= round_cntr;
-
             eom_captured_q <= eom_captured;
             hash_flag_q    <= hash_flag;
             a_q            <= a;

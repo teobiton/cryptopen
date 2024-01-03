@@ -8,10 +8,10 @@
 // ------------------------------------------------------
 
 module sha512 #(
-    parameter int unsigned DataWidth = 64,
-    parameter int unsigned AddrWidth = 32,
-    parameter int unsigned DataBytes = DataWidth >> 3,
-    parameter bit          ByteAlign = 1,
+    parameter int unsigned DataWidth   = 64,
+    parameter int unsigned AddrWidth   = 32,
+    parameter int unsigned DataBytes   = DataWidth >> 3,
+    parameter bit          ByteAlign   = 1,
     parameter int unsigned DigestWidth = 512
 ) (
     input  logic                 clk_i,             // Clock
@@ -27,7 +27,7 @@ module sha512 #(
     input  logic                 sha_s_rspready_i,  // Response ready
     output logic                 sha_s_rspvalid_o,  // Response valid
     output logic [DataWidth-1:0] sha_s_rspdata_o,   // Data bus response
-    output logic                 sha_s_rsperror_o  // Error response
+    output logic                 sha_s_rsperror_o   // Error response
 );
 
     // Calculate internal parameters

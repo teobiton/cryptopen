@@ -50,11 +50,11 @@ module sha1_core #(
         int w08 = block[8*WordSize   +: WordSize];
         int w13 = block[13*WordSize  +: WordSize];
 
-        int temp_word = w00 ^ w02 ^ w08 ^ w13;
+        int t_w = w00 ^ w02 ^ w08 ^ w13;
 
         logic [WordSize-1:0] word;
 
-        word = {temp_word[30:0], temp_word[WordSize-1]};
+        word = {t_w[30:0], t_w[WordSize-1]};
 
         return word;
 
