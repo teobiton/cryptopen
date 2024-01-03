@@ -2,18 +2,55 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+# Default parameters values
+set DataWidth   64
+set AddrWidth   32
+set ByteAlign   1
+set DigestWidth 256
+
+# Default top level
+set top_level sha1
+
+# Process tclargs field
+set num_arg $argc
+if {$num_arg > 0} {
+    for {set i 0} {$i < $num_arg} {incr i} {
+        set arg [lindex $argv $i]
+        if {[regexp {^data_width=(.*)$} $arg match val] == 1} {
+            set DataWidth $val
+        }
+        if {[regexp {^addr_width=(.*)$} $arg match val] == 1} {
+            set AddrWidth $val
+        }
+        if {[regexp {^byte_align=(.*)$} $arg match val] == 1} {
+            set ByteAlign $val
+        }
+        if {[regexp {^digest_width=(.*)$} $arg match val] == 1} {
+            set DigestWidth $val
+        }
+        if {[regexp {^top_level=(.*)$} $arg match val] == 1} {
+            set top_level $val
+        }
+    }
+}
+
+# Force DigestWidth parameter for the SHA-1 algorithm
+if {$top_level == "sha1"} {
+    set DigestWidth 160
+}
+
 # Add RTL sources from generated file
 source scripts/read_rtl_sources.tcl
 
 # Set top level module
-set_property top $::env(TOP_LEVEL) [current_fileset]
+set_property top $top_level [current_fileset]
 update_compile_order -fileset sources_1
 
 # Read global constraint file
 add_files -fileset constrs_1 -norecurse constraints/$project.xdc
 
-# Elaborate RTL design
-synth_design -rtl -name rtl_1
+# Elaborate RTL design with generic values
+synth_design -generic DataWidth=$DataWidth -generic AddrWidth=$AddrWidth -generic DigestWidth=$DigestWidth -generic ByteAlign=$ByteAlign -rtl -name rtl_1
 
 set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 
