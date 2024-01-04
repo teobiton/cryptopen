@@ -46,12 +46,9 @@ DIGEST_WIDTH ?= 256
 acc-dir := $(hw-dir)/$(TOP_LEVEL)
 itf-dir := $(hw-dir)/interface
 
-acc_src := $(acc-dir)/$(TOP_LEVEL).sv \
-		   $(acc-dir)/$(TOP_LEVEL)_core.sv
-
+acc_src := $(shell cat $(acc-dir)/$(TOP_LEVEL).f)
 itf_src := $(itf-dir)/$(INTERFACE)_reg_interface.sv
-
-fpga_src = $(acc_src) $(itf_src)
+fpga_src = $(addprefix $(root-dir)/, $(acc_src)) $(itf_src)
 
 # Vivado cmd and flags
 VIVADO ?= vivado
@@ -69,8 +66,7 @@ TCLARGS = -tclargs \
 
 fpga:
 	@echo "[FPGA] Generate sources"
-	@echo read_verilog -sv {$(acc_src)} > $(scripts-dir)/read_rtl_sources.tcl
-	@echo read_verilog -sv {$(itf_src)} >> $(scripts-dir)/read_rtl_sources.tcl
+	@echo read_verilog -sv {$(fpga_src)} > $(scripts-dir)/read_rtl_sources.tcl
 	@echo "[FPGA] Run synthesis, implementation and generate bitstream"
 	@echo "[FPGA] Top level = $(TOP_LEVEL)"
 	@echo "[FPGA] Board = $(BOARD)"
