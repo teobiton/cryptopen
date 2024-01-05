@@ -34,11 +34,6 @@ if {$num_arg > 0} {
     }
 }
 
-# Force DigestWidth parameter for the SHA-1 algorithm
-if {$top_level == "sha1"} {
-    set DigestWidth 160
-}
-
 # Add RTL sources from generated file
 source scripts/read_rtl_sources.tcl
 

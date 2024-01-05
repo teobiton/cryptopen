@@ -65,6 +65,7 @@ TCLARGS = -tclargs \
 		  digest_width=$(DIGEST_WIDTH)
 
 fpga:
+	@bash $(scripts-dir)/checker.sh $(TOP_LEVEL) $(DIGEST_WIDTH) $(DATA_WIDTH) $(ADDR_WIDTH) $(BYTE_ALIGN)
 	@echo "[FPGA] Generate sources"
 	@echo read_verilog -sv {$(fpga_src)} > $(scripts-dir)/read_rtl_sources.tcl
 	@echo "[FPGA] Run synthesis, implementation and generate bitstream"
