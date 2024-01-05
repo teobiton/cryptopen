@@ -2,14 +2,14 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Default parameters values
+# Default top level
+set top_level   sha256
+
+# Default RTL parameters values
 set DataWidth   64
 set AddrWidth   32
 set ByteAlign   1
 set DigestWidth 256
-
-# Default top level
-set top_level sha1
 
 # Process tclargs field
 set num_arg $argc
@@ -62,8 +62,6 @@ check_timing -verbose                                                   -file re
 report_timing -max_paths 20 -nworst 20 -delay_type max -sort_by slack   -file reports/$project.timing_WORST_20.rpt
 report_timing -nworst 1 -delay_type max -sort_by group                  -file reports/$project.timing.rpt
 report_utilization -hierarchical                                        -file reports/$project.utilization.rpt
-report_cdc                                                              -file reports/$project.cdc.rpt
-report_clock_interaction                                                -file reports/$project.clock_interaction.rpt
 
 # Implementation
 launch_runs impl_1
@@ -73,7 +71,7 @@ exec mkdir -p reports/
 exec rm -rf reports/*
 
 # Final timing checks and reports
-check_timing                                                            -file reports/${project}.check_timing.rpt
-report_timing -max_paths 20 -nworst 20 -delay_type max -sort_by slack   -file reports/${project}.timing_WORST_20.rpt
-report_timing -nworst 1 -delay_type max -sort_by group                  -file reports/${project}.timing.rpt
-report_utilization -hierarchical                                        -file reports/${project}.utilization.rpt
+check_timing                                                            -file reports/$project.check_timing.rpt
+report_timing -max_paths 20 -nworst 20 -delay_type max -sort_by slack   -file reports/$project.timing_WORST_20.rpt
+report_timing -nworst 1 -delay_type max -sort_by group                  -file reports/$project.timing.rpt
+report_utilization -hierarchical                                        -file reports/$project.utilization.rpt
