@@ -47,7 +47,7 @@ ACC_DIR := $(HW_DIR)/$(TOP_LEVEL)
 ITF_DIR := $(HW_DIR)/interface
 
 # Gather all RTL sources
-ACC_SRC  := $(shell cat $(ACC_DIR)/$(TOP_LEVEL).f)
+ACC_SRC  := $(shell cat $(ACC_DIR)/Flist.$(TOP_LEVEL))
 ITF_SRC  := $(ITF_DIR)/$(INTERFACE)_reg_interface.sv
 FPGA_SRC := $(addprefix $(ROOT_DIR)/, $(ACC_SRC)) $(ITF_SRC)
 
