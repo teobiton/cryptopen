@@ -2,16 +2,16 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# root path
-mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-fpga-dir := $(dir $(mkfile_path))
-root-dir := $(fpga-dir)..
+# Root path
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+FPGA_DIR := $(dir $(MAKEFILE_PATH))
+ROOT_DIR := $(shell dirname $(FPGA_DIR))
 
-scripts-dir := $(fpga-dir)/scripts
-hw-dir      := $(root-dir)/hw
+SCRIPTS_DIR := $(ROOT_DIR)/fpga/scripts
+HW_DIR      := $(ROOT_DIR)/hw
 
 # Board name for synthesis and implementation
-BOARD       ?= spartan7
+BOARD ?= spartan7
 
 ifeq ($(BOARD), genesys2)
 	XILINX_PART   := xc7k325tffg900-2
@@ -27,32 +27,33 @@ $(error Unknown board - supported: genesys2, spartan7)
 endif
 
 # Interface choice
-INTERFACE   ?= simple
+INTERFACE ?= simple
 
-_supported_itf = simple
-
-ifeq ($(filter $(INTERFACE), $(_supported_itf)),)
-$(error Unknown interface protocol - supported: $(_supported_itf))
+ifeq ($(filter $(INTERFACE), simple),)
+$(error Unknown interface protocol - supported: simple)
 endif
 
 # Top level module to compile
 TOP_LEVEL  ?= sha256
-# Default parameters
-DATA_WIDTH ?= 64
-ADDR_WIDTH ?= 32
-BYTE_ALIGN ?= 1
+
+# RTL parameters
+DATA_WIDTH   ?= 64
+ADDR_WIDTH   ?= 32
+BYTE_ALIGN   ?= 1
 DIGEST_WIDTH ?= 256
 
-acc-dir := $(hw-dir)/$(TOP_LEVEL)
-itf-dir := $(hw-dir)/interface
+# RTL sources paths
+ACC_DIR := $(HW_DIR)/$(TOP_LEVEL)
+ITF_DIR := $(HW_DIR)/interface
 
-acc_src := $(shell cat $(acc-dir)/$(TOP_LEVEL).f)
-itf_src := $(itf-dir)/$(INTERFACE)_reg_interface.sv
-fpga_src = $(addprefix $(root-dir)/, $(acc_src)) $(itf_src)
+# Gather all RTL sources
+ACC_SRC  := $(shell cat $(ACC_DIR)/$(TOP_LEVEL).f)
+ITF_SRC  := $(ITF_DIR)/$(INTERFACE)_reg_interface.sv
+FPGA_SRC := $(addprefix $(ROOT_DIR)/, $(ACC_SRC)) $(ITF_SRC)
 
-# Vivado cmd and flags
-VIVADO ?= vivado
-VIVADOFLAGS ?= -nojournal -mode batch -source $(scripts-dir)/project.tcl
+# Vivado command and flags
+VIVADO      ?= vivado
+VIVADOFLAGS ?= -nojournal -mode batch -source $(SCRIPTS_DIR)/project.tcl
 
 # Tcl arguments
 TCLARGS = -tclargs \
@@ -65,23 +66,27 @@ TCLARGS = -tclargs \
 		  digest_width=$(DIGEST_WIDTH)
 
 fpga:
-	@bash $(scripts-dir)/checker.sh $(TOP_LEVEL) $(DIGEST_WIDTH) $(DATA_WIDTH) $(ADDR_WIDTH) $(BYTE_ALIGN)
+	@bash $(SCRIPTS_DIR)/checker.sh $(TOP_LEVEL) $(DIGEST_WIDTH) $(DATA_WIDTH) $(ADDR_WIDTH) $(BYTE_ALIGN)
+	
 	@echo "[FPGA] Generate sources"
-	@echo read_verilog -sv {$(fpga_src)} > $(scripts-dir)/read_rtl_sources.tcl
+	@rm -f $(SCRIPTS_DIR)/read_rtl_sources.tcl
+	@echo read_verilog -sv {$(FPGA_SRC)} > $(SCRIPTS_DIR)/read_rtl_sources.tcl
+	
 	@echo "[FPGA] Run synthesis, implementation and generate bitstream"
 	@echo "[FPGA] Top level = $(TOP_LEVEL)"
-	@echo "[FPGA] Board = $(BOARD)"
+	@echo "[FPGA] Board     = $(BOARD)"
 	@echo "[FPGA] RTL parameters :"
-	@echo "       DataWidth = $(DATA_WIDTH)"
-	@echo "       AddrWidth = $(ADDR_WIDTH)"
-	@echo "       ByteAlign = $(BYTE_ALIGN)"
-	@echo "       DigestWidth = $(DIGEST_WIDTH) (unused in SHA-1 implementation)"
-	$(VIVADO) $(VIVADOFLAGS) -source $(scripts-dir)/run.tcl $(TCLARGS)
+	@echo "       DataWidth   = $(DATA_WIDTH)"
+	@echo "       AddrWidth   = $(ADDR_WIDTH)"
+	@echo "       ByteAlign   = $(BYTE_ALIGN)"
+	@echo "       DigestWidth = $(DIGEST_WIDTH)"
+	
+	$(VIVADO) $(VIVADOFLAGS) -source $(SCRIPTS_DIR)/run.tcl $(TCLARGS)
 
 .PHONY: fpga
 
 clean:
-	rm -rf *.log *.jou *.str *.mif *.xpr cryptopen.cache cryptopen.hw cryptopen.ip_user_files $(scripts-dir)/vivado*
-	rm -rf cryptopen.hbs cryptopen.runs
+	rm -rf *.log *.jou *.str *.mif *.xpr $(SCRIPTS_DIR)/vivado*
+	rm -rf cryptopen.*
 	rm -rf reports
-	rm -f $(scripts-dir)/read_rtl_sources.tcl
+	rm -f $(SCRIPTS_DIR)/read_rtl_sources.tcl
