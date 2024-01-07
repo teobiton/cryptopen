@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-from sha1 import sha1
+from sha1_model import sha1
 
 
 def test_one_block_message() -> None:

@@ -14,8 +14,8 @@ from string import ascii_lowercase
 from typing import Dict, List, Tuple, Union
 
 from lib2 import fsm, init, intblock, round_computation
-from model.sha256 import sha256
-from model.sha512 import sha512
+from model.sha256_model import sha256
+from model.sha512_model import sha512
 
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
