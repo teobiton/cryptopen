@@ -22,7 +22,6 @@ class Driver:
         block_width: int,
         digest_width: int,
         bus_mapping: Optional[Dict[str, str]] = None,
-        **kwargs
     ):
         self.entity = entity
         self.bus = Master(
@@ -77,6 +76,10 @@ class Driver:
 
     async def reset(self) -> None:
         await self.bus.write(value=0x2, address=CTRL_ADDR)
+
+    async def read_hold(self) -> int:
+        ctrlreg = await self.bus.read(address=CTRL_ADDR)
+        return ctrlreg & 0x8
 
     async def read_valid(self) -> int:
         ctrlreg = await self.bus.read(address=CTRL_ADDR)

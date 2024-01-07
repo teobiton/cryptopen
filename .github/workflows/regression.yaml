@@ -63,4 +63,4 @@ jobs:
 
       - name: Run all IPs top-level test suite
         run: |
-          pytest tb/test_tops.py -vs
+          ITERATIONS=${{ env.ITERATIONS }} pytest tb/test_tops.py -vs
