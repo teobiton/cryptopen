@@ -13,7 +13,7 @@ from string import ascii_lowercase
 from typing import Dict, List
 
 from lib import fsm, init, intblock, round_computation
-from model.sha1 import sha1
+from model.sha1_model import sha1
 
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
