@@ -326,8 +326,8 @@ module sha1_core #(
     assign digest = {h0, h1, h2, h3, h4};
 
     // additional information for control register
-    assign hold_o = (current_state == HOLD);
-    assign idle_o = (current_state == IDLE);
+    assign hold_o = (next_state == HOLD);
+    assign idle_o = (next_state == IDLE);
 
     always_ff @(posedge clk_i, negedge rst_ni) begin : digest_ff
         if (~rst_ni) begin
