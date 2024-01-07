@@ -8,14 +8,18 @@ from typing import Dict, List, Union
 import cocotb
 import pytest
 from cocotb.clock import Clock
+from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import RisingEdge, Timer
+from secrets import choice
+from string import printable
 
 from driver import Driver
 from sha1.model.sha1_model import sha1
 from sha2.model.sha256_model import sha256
 from sha2.model.sha512_model import sha512
 
+ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 WAVES = os.getenv("WAVES", "0")
@@ -90,7 +94,7 @@ async def toggle_reset(dut) -> None:
 
 
 @cocotb.test()
-async def run_algorithm(dut) -> None:
+async def run_one_block_message(dut) -> None:
     """Write block and run algorithm for a one block message"""
 
     await init(dut)
@@ -145,6 +149,141 @@ async def run_algorithm(dut) -> None:
     assert digest == model.digest().lstrip(
         "0"
     ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
+
+
+@cocotb.test()
+async def run_two_block_message(dut) -> None:
+    """Write blocks and run algorithm for a two block message"""
+
+    await init(dut)
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await Timer(35, units="ns")
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    # Instantiate driver to access registers
+    driver: Driver = Driver(
+        entity=dut,
+        data_width=DATA_WIDTH,
+        addr_width=ADDR_WIDTH,
+        byte_align=BYTE_ALIGN,
+        block_width=BLOCK_WIDTH,
+        digest_width=DIGEST_WIDTH,
+        bus_mapping=MAPPING,
+    )
+
+    messages = {
+        512: "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        1024: "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
+    }
+
+    message: str = messages[BLOCK_WIDTH]
+
+    # Instantiate Python model
+    model = core_factory(dut.name, BLOCK_WIDTH, DIGEST_WIDTH)
+    model.process(message)
+
+    for cycle in range(len(model.blocks)):
+        # Write block to registers
+        block = intblock(model.blocks, cycle)
+        await driver.write_block(block=block)
+
+        await RisingEdge(dut.clk_i)
+
+        # Check if the core received the correct value
+        assert dut.sha_block.value == block
+
+        # Enable algorithm by writing enable bit in control register
+        await driver.enable()
+
+        # Read valid bit in control register
+        while True:
+            core_hold = await driver.read_hold()
+            core_done = await driver.read_valid()
+
+            if core_hold or core_done:
+                break
+
+            await RisingEdge(dut.clk_i)
+
+    # Read digest value
+    digest: str = f"{await driver.read_digest():x}"
+    assert digest == model.digest().lstrip(
+        "0"
+    ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
+
+
+async def run_random_message(dut, message) -> None:
+    """Write blocks and run algorithm for random messages"""
+
+    await init(dut)
+
+    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
+
+    # Turn off reset
+    dut.rst_ni.value = 1
+
+    await Timer(35, units="ns")
+
+    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
+
+    # Instantiate driver to access registers
+    driver: Driver = Driver(
+        entity=dut,
+        data_width=DATA_WIDTH,
+        addr_width=ADDR_WIDTH,
+        byte_align=BYTE_ALIGN,
+        block_width=BLOCK_WIDTH,
+        digest_width=DIGEST_WIDTH,
+        bus_mapping=MAPPING,
+    )
+
+    # Instantiate Python model
+    model = core_factory(dut.name, BLOCK_WIDTH, DIGEST_WIDTH)
+    model.process(message)
+
+    for cycle in range(len(model.blocks)):
+        # Write block to registers
+        block = intblock(model.blocks, cycle)
+        await driver.write_block(block=block)
+
+        await RisingEdge(dut.clk_i)
+
+        # Check if the core received the correct value
+        assert dut.sha_block.value == block
+
+        # Enable algorithm by writing enable bit in control register
+        await driver.enable()
+
+        # Read valid bit in control register
+        while True:
+            core_hold = await driver.read_hold()
+            core_done = await driver.read_valid()
+
+            if core_hold or core_done:
+                break
+
+            await RisingEdge(dut.clk_i)
+
+    # Read digest value
+    digest: str = f"{await driver.read_digest():x}"
+    assert digest == model.digest().lstrip(
+        "0"
+    ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
+
+
+factory = TestFactory(run_random_message)
+messages: List[str] = [
+    "".join(choice(printable) for _ in range(choice(range(5, 2000))))
+    for _ in range(ITERATIONS)
+]
+factory.add_option(name="message", optionlist=messages)
+factory.generate_tests()
 
 
 @pytest.mark.parametrize("ip", ["sha1", "sha256", "sha512"])
