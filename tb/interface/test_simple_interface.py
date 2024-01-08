@@ -8,15 +8,13 @@ from typing import Dict, List
 
 import cocotb
 import pytest
+from bus.master import Master
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 from cocotb.result import TestSuccess
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
-
-from bus.master import Master
-from utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, MAPPING
-from utils import align
+from utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, MAPPING, align
 
 ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")

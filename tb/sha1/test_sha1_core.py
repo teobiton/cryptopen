@@ -2,16 +2,15 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge, Timer
-from cocotb.runner import get_runner, Simulator
-
 import os
 from secrets import choice
 from string import printable
 from typing import Dict, List
 
+import cocotb
+from cocotb.clock import Clock
+from cocotb.runner import Simulator, get_runner
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from lib import fsm, init, intblock, round_computation
 from model.sha1_model import sha1
 
