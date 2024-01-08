@@ -5,6 +5,7 @@
 from typing import Dict, List, Optional
 
 from cocotb.handle import SimHandleBase
+
 from interface.bus.master import Master
 from interface.utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, align
 

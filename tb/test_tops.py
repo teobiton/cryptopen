@@ -13,6 +13,7 @@ from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
+
 from driver import Driver
 from sha1.model.sha1_model import sha1
 from sha2.model.sha256_model import sha256
@@ -59,7 +60,7 @@ def core_factory(
     elif name == "sha512":
         return sha512(digest_width=digest_width)
     else:
-        return ValueError(f"Unsupported block width: {block_width}")
+        return ValueError(f"Unsupported core: {name}")
 
 
 @cocotb.coroutine
