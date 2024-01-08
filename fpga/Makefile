@@ -26,13 +26,6 @@ else
 $(error Unknown board - supported: genesys2, spartan7)
 endif
 
-# Interface choice
-INTERFACE ?= simple
-
-ifeq ($(filter $(INTERFACE), simple),)
-$(error Unknown interface protocol - supported: simple)
-endif
-
 # Top level module to compile
 TOP_LEVEL  ?= sha256
 
@@ -43,13 +36,11 @@ BYTE_ALIGN   ?= 1
 DIGEST_WIDTH ?= 256
 
 # RTL sources paths
-ACC_DIR := $(HW_DIR)/$(TOP_LEVEL)
-ITF_DIR := $(HW_DIR)/interface
+CORE_DIR := $(HW_DIR)/$(TOP_LEVEL)
 
 # Gather all RTL sources
-ACC_SRC  := $(shell cat $(ACC_DIR)/Flist.$(TOP_LEVEL))
-ITF_SRC  := $(ITF_DIR)/$(INTERFACE)_reg_interface.sv
-FPGA_SRC := $(addprefix $(ROOT_DIR)/, $(ACC_SRC)) $(ITF_SRC)
+CORE_SRC := $(shell cat $(CORE_DIR)/Flist.$(TOP_LEVEL))
+FPGA_SRC := $(addprefix $(ROOT_DIR)/, $(CORE_SRC))
 
 # Vivado command and flags
 VIVADO      ?= vivado

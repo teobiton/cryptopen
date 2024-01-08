@@ -1,2 +1,3 @@
 hw/sha256/sha256.sv
 hw/sha256/sha256_core.sv
+hw/interface/simple_reg_interface.sv
