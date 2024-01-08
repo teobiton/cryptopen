@@ -332,9 +332,7 @@ def test_ip(ip):
     module: str = os.path.splitext(os.path.basename(__file__))[0]
     toplevel: str = ip
 
-    verilog_sources: List[str] = [
-        os.path.join(itf_dir, f"simple_reg_interface.sv"),
-    ]
+    verilog_sources: List[str] = []
 
     with open(f"{rtl_dir}/Flist.{ip}") as flist:
         for f in flist:
