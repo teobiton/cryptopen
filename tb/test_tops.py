@@ -10,7 +10,7 @@ import pytest
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from secrets import choice
 from string import printable
 
@@ -150,6 +150,17 @@ async def run_one_block_message(dut) -> None:
         "0"
     ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
 
+    # Reset core
+    await driver.reset()
+
+    await RisingEdge(dut.clk_i)
+
+    assert dut.idle == 1
+
+    await ClockCycles(dut.clk_i, 2)
+
+    assert dut.digest_valid == 0
+
 
 @cocotb.test()
 async def run_two_block_message(dut) -> None:
@@ -217,6 +228,17 @@ async def run_two_block_message(dut) -> None:
         "0"
     ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
 
+    # Reset core
+    await driver.reset()
+
+    await RisingEdge(dut.clk_i)
+
+    assert dut.idle == 1
+
+    await ClockCycles(dut.clk_i, 2)
+
+    assert dut.digest_valid == 0
+
 
 async def run_random_message(dut, message) -> None:
     """Write blocks and run algorithm for random messages"""
@@ -275,6 +297,17 @@ async def run_random_message(dut, message) -> None:
     assert digest == model.digest().lstrip(
         "0"
     ), f"Expected digest {model.digest().lstrip('0')}, got {digest}"
+
+    # Reset core
+    await driver.reset()
+
+    await RisingEdge(dut.clk_i)
+
+    assert dut.idle == 1
+
+    await ClockCycles(dut.clk_i, 2)
+
+    assert dut.digest_valid == 0
 
 
 factory = TestFactory(run_random_message)
