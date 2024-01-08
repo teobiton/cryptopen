@@ -2,8 +2,8 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-from sha256_model import sha256
 import pytest
+from sha256_model import sha256
 
 
 @pytest.mark.parametrize("digest_width", [224, 256])

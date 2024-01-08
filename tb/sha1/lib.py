@@ -2,11 +2,11 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import cocotb
-from cocotb.triggers import Timer
-
 from enum import Enum
 from typing import List
+
+import cocotb
+from cocotb.triggers import Timer
 
 
 class fsm(Enum):

@@ -12,12 +12,11 @@ read and write operations.
 
 from typing import Dict, List, Optional
 
+from cocotb.binary import BinaryValue
 from cocotb.clock import Clock
 from cocotb.decorators import coroutine
-from cocotb.triggers import RisingEdge
-from cocotb.binary import BinaryValue
 from cocotb.handle import SimHandleBase
-
+from cocotb.triggers import RisingEdge
 from cocotb_bus.drivers import BusDriver
 
 

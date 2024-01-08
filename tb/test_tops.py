@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from secrets import choice
+from string import printable
 from typing import Dict, List, Union
 
 import cocotb
@@ -11,9 +13,6 @@ from cocotb.clock import Clock
 from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
-from secrets import choice
-from string import printable
-
 from driver import Driver
 from sha1.model.sha1_model import sha1
 from sha2.model.sha256_model import sha256
