@@ -33,7 +33,7 @@ module sha256 #(
     // SHA-256 internal parameters
     localparam int unsigned BlockWidth = 512;
 
-    logic [BlockWidth-1:0] sha_block;
+    logic [BlockWidth-1:0] block;
 
     logic enable_hash;
     logic reset_hash;
@@ -66,7 +66,7 @@ module sha256 #(
         .idle_i         ( idle              ),
         .enable_hash_o  ( enable_hash       ),
         .reset_hash_o   ( reset_hash        ),
-        .block_o        ( sha_block         ),
+        .block_o        ( block             ),
         .digest_i       ( digest            ),
         .digest_valid_i ( digest_valid      )
     );
@@ -77,7 +77,7 @@ module sha256 #(
     ) u_sha256_core (
         .clk_i,
         .rst_ni,
-        .block_i        ( sha_block    ),
+        .block_i        ( block        ),
         .enable_hash_i  ( enable_hash  ),
         .rst_hash_i     ( reset_hash   ),
         .hold_o         ( hold         ),

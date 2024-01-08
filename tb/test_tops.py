@@ -132,7 +132,7 @@ async def run_one_block_message(dut) -> None:
     await RisingEdge(dut.clk_i)
 
     # Check if the core received the correct value
-    assert dut.sha_block.value == block
+    assert dut.block.value == block
 
     # Enable algorithm by writing enable bit in control register
     await driver.enable()
@@ -196,7 +196,7 @@ async def run_two_block_message(dut) -> None:
         await RisingEdge(dut.clk_i)
 
         # Check if the core received the correct value
-        assert dut.sha_block.value == block
+        assert dut.block.value == block
 
         # Enable algorithm by writing enable bit in control register
         await driver.enable()
@@ -255,7 +255,7 @@ async def run_random_message(dut, message) -> None:
         await RisingEdge(dut.clk_i)
 
         # Check if the core received the correct value
-        assert dut.sha_block.value == block
+        assert dut.block.value == block
 
         # Enable algorithm by writing enable bit in control register
         await driver.enable()
