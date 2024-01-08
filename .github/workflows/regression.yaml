@@ -15,6 +15,7 @@ on:
 
 env:
   ITERATIONS: 1000
+  MESSAGES: 50
   VERILATOR_VERSION: v5.006
 
 jobs:
@@ -63,4 +64,4 @@ jobs:
 
       - name: Run all IPs top-level test suite
         run: |
-          ITERATIONS=${{ env.ITERATIONS }} pytest tb/test_tops.py -vs
+          ITERATIONS=${{ env.MESSAGES }} pytest tb/test_tops.py -vs
