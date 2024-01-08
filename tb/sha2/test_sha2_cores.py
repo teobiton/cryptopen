@@ -10,7 +10,7 @@ from cocotb.runner import get_runner, Simulator
 import os
 import pytest
 from secrets import choice
-from string import ascii_lowercase
+from string import printable
 from typing import Dict, List, Tuple, Union
 
 from lib2 import fsm, init, intblock, round_computation
@@ -223,7 +223,7 @@ async def long_random_message(dut) -> None:
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
     # Compute a random message
-    message: str = "".join(choice(ascii_lowercase) for _ in range(1000))
+    message: str = "".join(choice(printable) for _ in range(1000))
 
     dut._log.info(f"Performing sha256 algorithm for message : {message}")
 
