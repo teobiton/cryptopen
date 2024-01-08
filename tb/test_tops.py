@@ -320,13 +320,21 @@ factory.generate_tests()
 
 
 @pytest.mark.parametrize("ip", ["sha1", "sha256", "sha512"])
-def test_ip(ip):
+@pytest.mark.parametrize("DigestWidth", ["160", "224", "256", "384", "512"])
+def test_ip(ip, DigestWidth):
     """Run cocotb tests on accelators IPs."""
+
+    # skip test if there is an invalid combination of parameters
+    if (
+        (ip == "sha1" and DigestWidth in ["224", "256", "384", "512"])
+        or (ip == "sha256" and DigestWidth in ["160", "384", "512"])
+        or (ip == "sha512" and DigestWidth == "160")
+    ):
+        pytest.skip(f"Invalid combination: IP = {ip} and DigestWidth = {DigestWidth}")
 
     tests_dir: str = os.path.dirname(__file__)
     root_dir: str = os.path.abspath(os.path.join(tests_dir, ".."))
     rtl_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw", ip))
-    itf_dir: str = os.path.abspath(os.path.join(tests_dir, "..", "hw", "interface"))
 
     dut: str = ip
     module: str = os.path.splitext(os.path.basename(__file__))[0]
@@ -343,6 +351,11 @@ def test_ip(ip):
     if SIM == "verilator" and WAVES == "1":
         extra_args = ["--trace", "--trace-structs"]
 
+    parameters: Dict[str, str] = {}
+
+    if ip != "sha1":
+        parameters["DigestWidth"] = DigestWidth
+
     sim_build: str = os.path.join(tests_dir, f"{SIM_BUILD}", f"{dut}_sim_build")
 
     runner: Simulator = get_runner(simulator_name=SIM)
@@ -353,6 +366,7 @@ def test_ip(ip):
         always=True,
         build_dir=sim_build,
         build_args=extra_args,
+        parameters=parameters,
     )
 
     runner.test(hdl_toplevel=toplevel, test_module=module)
