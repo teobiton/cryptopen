@@ -54,17 +54,43 @@ The "estimations" badge means synthesis and implementation results are available
 | SHA-512/256 | ![Static Badge][yvrfd] | ![Static Badge][uvrfd] | ![Static Badge][estm]       |
 
 Available FPGA results are shown in the table below.
-Synthesis and implementation done with Spartan-7 and Artix-7 boards, but not validated on target for now.
+Synthesis and implementation done with Spartan-7, Artix-7 and Genesys-2 boards, but not validated on target for now.
+
+- **Spartan-7**
 
 | IP          | LUTs | FF   | Frequency estimation |
 |-------------|------|------|----------------------|
-| SHA-1       | 1500 | 1506 | 150 MHz              |
-| SHA-224     | 1973 | 1834 | 145 MHz              |
-| SHA-256     | 1973 | 1834 | 145 MHz              |
-| SHA-384     | 4058 | 3778 | 134 MHz              |
-| SHA-512     | 4065 | 3773 | 134 MHz              |
-| SHA-512/224 | 3871 | 3773 | 136 MHz              |
-| SHA-512/256 | 3931 | 3778 | 134 MHz              |
+| SHA-1       | 1455 | 1499 | 150 MHz              |
+| SHA-224     | 1968 | 1898 | 146 MHz              |
+| SHA-256     | 1945 | 1841 | 148 MHz              |
+| SHA-384     | 4035 | 3826 | 136 MHz              |
+| SHA-512     | 4070 | 3755 | 134 MHz              |
+| SHA-512/224 | 3848 | 3756 | 136 MHz              |
+| SHA-512/256 | 3872 | 3760 | 134 MHz              |
+
+- **Artix-7**
+
+| IP          | LUTs | FF   | Frequency estimation |
+|-------------|------|------|----------------------|
+| SHA-1       | 1455 | 1499 | 150 MHz              |
+| SHA-224     | 1968 | 1898 | 146 MHz              |
+| SHA-256     | 1945 | 1838 | 148 MHz              |
+| SHA-384     | 4035 | 3822 | 136 MHz              |
+| SHA-512     | 4069 | 3754 | 134 MHz              |
+| SHA-512/224 | 3848 | 3803 | 136 MHz              |
+| SHA-512/256 | 3872 | 3760 | 134 MHz              |
+
+- **Genesys-2**
+
+| IP          | LUTs | FF   | Frequency estimation |
+|-------------|------|------|----------------------|
+| SHA-1       | 1456 | 1499 | 215 MHz              |
+| SHA-224     | 1968 | 1898 | 213 MHz              |
+| SHA-256     | 1945 | 1841 | 222 MHz              |
+| SHA-384     | 4040 | 3757 | 203 MHz              |
+| SHA-512     | 4081 | 3753 | 203 MHz              |
+| SHA-512/224 | 3849 | 3792 | 203 MHz              |
+| SHA-512/256 | 3883 | 3758 | 203 MHz              |
 
 ## Tools
 
