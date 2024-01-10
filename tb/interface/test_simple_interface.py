@@ -350,6 +350,20 @@ async def control_register(dut) -> None:
 
     dut._log.debug(">> Hash enabled")
 
+    # Last block signal
+
+    await master.write(address=CTRL_ADDR, value=0x21)
+
+    await ClockCycles(dut.clk_i, 5)
+
+    regval = await master.read(address=CTRL_ADDR)
+    regval = int(regval.value)
+
+    assert regval == 0x21
+    assert dut.last_block_o.value == 0x1
+
+    dut._log.debug(">> Hash enabled")
+
     # Reset computation
 
     await master.write(address=CTRL_ADDR, value=0x2)
