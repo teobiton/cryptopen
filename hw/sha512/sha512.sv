@@ -39,6 +39,7 @@ module sha512 #(
     logic reset_hash;
     logic idle;
     logic hold;
+    logic last;
 
     logic [DigestWidth-1:0] digest;
     logic                   digest_valid;
@@ -66,6 +67,7 @@ module sha512 #(
         .idle_i         ( idle              ),
         .enable_hash_o  ( enable_hash       ),
         .reset_hash_o   ( reset_hash        ),
+        .last_block_o   ( last              ),
         .block_o        ( block             ),
         .digest_i       ( digest            ),
         .digest_valid_i ( digest_valid      )
@@ -80,6 +82,7 @@ module sha512 #(
         .block_i        ( block        ),
         .enable_hash_i  ( enable_hash  ),
         .rst_hash_i     ( reset_hash   ),
+        .last_block_i   ( last         ),
         .hold_o         ( hold         ),
         .idle_o         ( idle         ),
         .digest_o       ( digest       ),

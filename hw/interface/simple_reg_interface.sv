@@ -35,6 +35,7 @@ module simple_reg_interface #(
     input  logic                   idle_i,        // Idle state
     output logic                   enable_hash_o, // Enable hash control
     output logic                   reset_hash_o,  // Reset hash control
+    output logic                   last_block_o,  // Signal last block
     output logic [BlockWidth-1:0]  block_o,       // Compute block
     input  logic [DigestWidth-1:0] digest_i,      // Digest block
     input  logic                   digest_valid_i // Digest block valid
@@ -57,6 +58,7 @@ module simple_reg_interface #(
         logic enable;
         logic reset;
         logic valid;
+        logic last;
     } ctrlreg_t;
 
     // Address alignment on byte or words
@@ -135,6 +137,7 @@ module simple_reg_interface #(
                             reqdata_i[0]
                           : ctrlreg_q.enable & ~unset_enable;
     assign ctrlreg.reset  = (ctrlregwr) ? reqdata_i[1] : 1'b0;
+    assign ctrlreg.last   = (ctrlregwr) ? reqdata_i[5] : ctrlreg_q.last & ~unset_enable;
 
     always_ff @(posedge clk_i, negedge rst_ni) begin : ctrlreg_ff
         if (~rst_ni) begin
@@ -145,6 +148,7 @@ module simple_reg_interface #(
     end
 
     assign enable_hash_o = ctrlreg_q.enable;
+    assign last_block_o  = ctrlreg_q.last;
     assign reset_hash_o  = ctrlreg_q.reset;
 
     assign rsperror_o = rsperror_q;
@@ -180,6 +184,7 @@ module simple_reg_interface #(
                     rspdata[2] = ctrlreg_q.idle;
                     rspdata[3] = ctrlreg_q.hold;
                     rspdata[4] = ctrlreg_q.valid;
+                    rspdata[5] = ctrlreg_q.last;
                 end
 
                 rsperror = ~ctrlregsel & reqvalid_i;

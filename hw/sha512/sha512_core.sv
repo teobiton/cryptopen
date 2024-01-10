@@ -17,6 +17,7 @@ module sha512_core #(
     input  logic [BlockWidth-1:0]  block_i,          // SHA-512 block
     input  logic                   enable_hash_i,    // Enable hash algorithm
     input  logic                   rst_hash_i,       // Reset hash algorithm
+    input  logic                   last_block_i,     // Last block to hash
     output logic                   hold_o,           // Hold state
     output logic                   idle_o,           // Idle state
 
@@ -124,23 +125,9 @@ module sha512_core #(
 
     endfunction : hword
 
-    // detect end of message
-    function automatic logic eom(input logic [WordSize-1:0] word);
-        logic e = 1'b0;
-        for(int b = 0; b < 8; b++) begin
-            e |= (word[b*8 +: 8] == 8'h80);
-        end
-        return e;
-    endfunction : eom
-
     logic [BlockWidth-1:0] word_mem, word_mem_q;
 
-    logic eom_captured, eom_captured_q;
-    logic eom_flag;
-    logic hash_flag, hash_flag_q;
-    logic unset_hash_flag;
-
-    logic enable_hash, rst_hash;
+    logic enable_hash, rst_hash, last_block;
 
     logic [6:0]  round_cntr, round_cntr_q;
 
@@ -156,22 +143,16 @@ module sha512_core #(
     logic         digest_valid, digest_valid_q;
     logic         round_done;
     logic         round_16;
-    logic         len_bound;
 
     // hash main control bits
     assign enable_hash = enable_hash_i;
     assign rst_hash    = rst_hash_i;
+    assign last_block  = last_block_i;
 
     // round is between cycles 16 and 80
     assign round_16 = |round_cntr_q[6:4];
-    // end of message must be before 896th bit
-    assign len_bound = (round_cntr_q[6:0] inside {7'he, 7'hf});
-    // detect end of message byte
-    assign eom_flag = eom(word);
     // round counter == 80
     assign round_done = round_cntr_q[6] & round_cntr_q[4];
-    // flag meaning an additional hash cycle is required
-    assign hash_flag = (eom_flag & len_bound) | hash_flag_q & ~unset_hash_flag;
 
     // values used during hashing
     assign k   = K[round_cntr_q[6:0]];
@@ -188,9 +169,6 @@ module sha512_core #(
         round_cntr   = round_cntr_q;
         digest_valid = digest_valid_q;
         word_mem     = word_mem_q;
-
-        eom_captured    = eom_captured_q;
-        unset_hash_flag = 1'b0;
 
         word = '0;
 
@@ -238,8 +216,6 @@ module sha512_core #(
                     word_mem[w*WordSize +: WordSize] = block_i[(NumWords-w)*WordSize-1 -: WordSize];
                 end
 
-                eom_captured = 1'b0;
-
                 // start hashing next cycle if enabled
                 if (enable_hash & ~rst_hash) begin
                     next_state = HASHING;
@@ -283,14 +259,12 @@ module sha512_core #(
                         h7
                     };
 
-                    next_state = (eom_captured & ~hash_flag) ? DONE : HOLD;
+                    next_state = (last_block) ? DONE : HOLD;
                 // else continue the computation
                 end else begin
 
                     if (~round_16) begin
                         word = word_mem[round_cntr_q[3:0]*WordSize +: WordSize];
-                        // last cycle if byte 0x80 is seen in range
-                        eom_captured |= eom_flag;
                     end else begin
                         // memory efficient : we recalculate the next rounds words during hashing
                         // however this approach is less performant because it requires much more computation
@@ -323,8 +297,6 @@ module sha512_core #(
                 // user can modify the block in the registers during the rounds
                 // and start the computation again based on previous digest value
 
-                unset_hash_flag = 1'b1;
-
                 // reset takes precedence, back to idle state
                 if (rst_hash) begin
                     next_state = IDLE;
@@ -345,8 +317,6 @@ module sha512_core #(
 
                 // assert digest is valid
                 digest_valid    = 1'b1;
-                eom_captured    = 1'b0;
-                unset_hash_flag = 1'b1;
 
                 // next move has to be a reset since computation is done
                 if (rst_hash) begin
@@ -362,31 +332,27 @@ module sha512_core #(
 
     always_ff @(posedge clk_i, negedge rst_ni) begin : sha_fsm_ff
         if (~rst_ni) begin
-            current_state  <= IDLE;
-            round_cntr_q   <= '0;
-            eom_captured_q <= 1'b0;
-            hash_flag_q    <= 1'b0;
-            a_q            <= H0;
-            b_q            <= H1;
-            c_q            <= H2;
-            d_q            <= H3;
-            e_q            <= H4;
-            f_q            <= H5;
-            g_q            <= H6;
-            h_q            <= H7;
+            current_state <= IDLE;
+            round_cntr_q  <= '0;
+            a_q           <= H0;
+            b_q           <= H1;
+            c_q           <= H2;
+            d_q           <= H3;
+            e_q           <= H4;
+            f_q           <= H5;
+            g_q           <= H6;
+            h_q           <= H7;
         end else begin
-            current_state  <= next_state;
-            round_cntr_q   <= round_cntr;
-            eom_captured_q <= eom_captured;
-            hash_flag_q    <= hash_flag;
-            a_q            <= a;
-            b_q            <= b;
-            c_q            <= c;
-            d_q            <= d;
-            e_q            <= e;
-            f_q            <= f;
-            g_q            <= g;
-            h_q            <= h;
+            current_state <= next_state;
+            round_cntr_q  <= round_cntr;
+            a_q           <= a;
+            b_q           <= b;
+            c_q           <= c;
+            d_q           <= d;
+            e_q           <= e;
+            f_q           <= f;
+            g_q           <= g;
+            h_q           <= h;
         end
     end
 
