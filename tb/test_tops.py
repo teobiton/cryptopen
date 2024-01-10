@@ -135,7 +135,7 @@ async def run_one_block_message(dut) -> None:
     assert dut.block.value == block
 
     # Enable algorithm by writing enable bit in control register
-    await driver.enable()
+    await driver.enable(last_block=True)
 
     # Read valid bit in control register
     while True:
@@ -210,7 +210,8 @@ async def run_two_block_message(dut) -> None:
         assert dut.block.value == block
 
         # Enable algorithm by writing enable bit in control register
-        await driver.enable()
+        last_block = cycle == (len(model.blocks) - 1)
+        await driver.enable(last_block=last_block)
 
         # Read valid bit in control register
         while True:
@@ -280,7 +281,8 @@ async def run_random_message(dut, message) -> None:
         assert dut.block.value == block
 
         # Enable algorithm by writing enable bit in control register
-        await driver.enable()
+        last_block = cycle == (len(model.blocks) - 1)
+        await driver.enable(last_block=last_block)
 
         # Read valid bit in control register
         while True:

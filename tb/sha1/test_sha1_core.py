@@ -115,6 +115,8 @@ async def one_block_message(dut) -> None:
     # byte order is big endian because logic is reversed between python's lists and verilog logic
     dut.block_i.value = intblock(model.blocks, 0)
     dut.enable_hash_i.value = 1
+    # signal last block since its a one block message
+    dut.last_block_i.value = 1
 
     # Wait until hash is done
     while True:
@@ -165,6 +167,8 @@ async def multi_blocks_message(dut) -> None:
         # byte order is big endian because logic is reversed between python's lists and verilog logic
         dut.block_i.value = intblock(model.blocks, cycle)
         dut.enable_hash_i.value = 1
+        # signal last block at last block
+        dut.last_block_i.value = cycle == (len(model.blocks) - 1)
 
         # Wait until hash is done
         while True:
@@ -218,6 +222,8 @@ async def long_random_message(dut) -> None:
         # byte order is big endian because logic is reversed between python's lists and verilog logic
         dut.block_i.value = intblock(model.blocks, cycle)
         dut.enable_hash_i.value = 1
+        # signal last block at last block
+        dut.last_block_i.value = cycle == (len(model.blocks) - 1)
 
         # Wait until hash is done
         while True:

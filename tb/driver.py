@@ -72,8 +72,10 @@ class Driver:
 
         return digest
 
-    async def enable(self) -> None:
-        await self.bus.write(value=0x1, address=CTRL_ADDR)
+    async def enable(self, last_block=False) -> None:
+        # write enable or last_block + enable
+        value = 0x1 if not last_block else 0x21
+        await self.bus.write(value=value, address=CTRL_ADDR)
 
     async def disable(self) -> None:
         await self.bus.write(value=0x0, address=CTRL_ADDR)
