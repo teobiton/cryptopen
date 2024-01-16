@@ -122,7 +122,7 @@ class Master(Mapper):
         self.bus.reqstrobe.value = int("0" * len(self.bus.reqstrobe), 2)
 
         while True:
-            if self.bus.rspvalid.value:
+            if self.bus.rspvalid.value or self.bus.rsperror.value:
                 break
             await RisingEdge(self.clock)
 
