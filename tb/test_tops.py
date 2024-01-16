@@ -15,6 +15,7 @@ from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 from driver import Driver
+from interface.utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, align
 from sha1.model.sha1_model import sha1
 from sha2.model.sha256_model import sha256
 from sha2.model.sha512_model import sha512
@@ -30,6 +31,18 @@ if cocotb.simulator.is_running():
     BLOCK_WIDTH = int(cocotb.top.BlockWidth)
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
     DIGEST_WIDTH = int(cocotb.top.DigestWidth)
+
+    ADDR_STEP: int = 8 if BYTE_ALIGN else 32
+
+    DIGEST_REGS_ADDR: List[int] = [
+        align(addr, ADDR_STEP) + DIGEST_ADDR
+        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
+    ]
+
+    BLOCK_REGS_ADDR: List[int] = [
+        align(addr, ADDR_STEP) + BLOCK_ADDR
+        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
+    ]
 
 MAPPING: Dict[str, str] = {
     "reqdata": "sha_s_reqdata_i",
@@ -116,6 +129,9 @@ async def run_one_block_message(dut) -> None:
         byte_align=BYTE_ALIGN,
         block_width=BLOCK_WIDTH,
         digest_width=DIGEST_WIDTH,
+        block_addrs=BLOCK_REGS_ADDR,
+        digest_addrs=DIGEST_REGS_ADDR,
+        ctrl_addr=CTRL_ADDR,
         bus_mapping=MAPPING,
     )
 
@@ -185,6 +201,9 @@ async def run_two_block_message(dut) -> None:
         byte_align=BYTE_ALIGN,
         block_width=BLOCK_WIDTH,
         digest_width=DIGEST_WIDTH,
+        block_addrs=BLOCK_REGS_ADDR,
+        digest_addrs=DIGEST_REGS_ADDR,
+        ctrl_addr=CTRL_ADDR,
         bus_mapping=MAPPING,
     )
 
@@ -263,6 +282,9 @@ async def run_random_message(dut, message) -> None:
         byte_align=BYTE_ALIGN,
         block_width=BLOCK_WIDTH,
         digest_width=DIGEST_WIDTH,
+        block_addrs=BLOCK_REGS_ADDR,
+        digest_addrs=DIGEST_REGS_ADDR,
+        ctrl_addr=CTRL_ADDR,
         bus_mapping=MAPPING,
     )
 

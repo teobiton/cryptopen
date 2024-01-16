@@ -7,7 +7,6 @@ from typing import Dict, List, Optional
 from cocotb.handle import SimHandleBase
 
 from interface.bus.master import Master
-from interface.utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, align
 
 
 class Driver:
@@ -25,6 +24,9 @@ class Driver:
         byte_align: int,
         block_width: int,
         digest_width: int,
+        block_addrs: List[int],
+        digest_addrs: List[int],
+        ctrl_addr: int,
         bus_mapping: Optional[Dict[str, str]] = None,
     ):
         self.entity = entity
@@ -38,14 +40,9 @@ class Driver:
         self.block_width = block_width
         self.digest_width = digest_width
 
-        self.block_addrs: List[int] = [
-            align(addr, byte_align) + BLOCK_ADDR
-            for addr in range(0, block_width, data_width)
-        ]
-        self.digest_addrs: List[int] = [
-            align(addr, byte_align) + DIGEST_ADDR
-            for addr in range(0, digest_width, data_width)
-        ]
+        self.block_addrs: List[int] = block_addrs
+        self.digest_addrs: List[int] = digest_addrs
+        self.ctrl_addr: int = ctrl_addr
 
     async def write_block(self, block: int) -> None:
         mask = 2**self.data_width - 1
@@ -75,18 +72,18 @@ class Driver:
     async def enable(self, last_block=False) -> None:
         # write enable or last_block + enable
         value = 0x1 if not last_block else 0x21
-        await self.bus.write(value=value, address=CTRL_ADDR)
+        await self.bus.write(value=value, address=self.ctrl_addr)
 
     async def disable(self) -> None:
-        await self.bus.write(value=0x0, address=CTRL_ADDR)
+        await self.bus.write(value=0x0, address=self.ctrl_addr)
 
     async def reset(self) -> None:
-        await self.bus.write(value=0x2, address=CTRL_ADDR)
+        await self.bus.write(value=0x2, address=self.ctrl_addr)
 
     async def read_hold(self) -> int:
-        ctrlreg = await self.bus.read(address=CTRL_ADDR)
+        ctrlreg = await self.bus.read(address=self.ctrl_addr)
         return ctrlreg & 0x8
 
     async def read_valid(self) -> int:
-        ctrlreg = await self.bus.read(address=CTRL_ADDR)
+        ctrlreg = await self.bus.read(address=self.ctrl_addr)
         return ctrlreg & 0x10

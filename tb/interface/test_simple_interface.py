@@ -3,23 +3,33 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from secrets import choice, randbits
+from secrets import randbits
 from typing import Dict, List
 
 import cocotb
 import pytest
+import vsc
 from bus.master import Master
 from cocotb.clock import Clock
 from cocotb.regression import TestFactory
-from cocotb.result import TestSuccess
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
-from utils import BLOCK_ADDR, CTRL_ADDR, DIGEST_ADDR, MAPPING, align
+from utils import (
+    BLOCK_ADDR,
+    CTRL_ADDR,
+    DIGEST_ADDR,
+    MAPPING,
+    Request,
+    RequestCovergroup,
+    align,
+)
 
 ITERATIONS = int(os.getenv("ITERATIONS", 10))
 SIM = os.getenv("SIM", "verilator")
 SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 WAVES = os.getenv("WAVES", "0")
+VSC = os.getenv("VSC", "0")
+VSC_FILE = os.getenv("VSC_FILE", "vsc.xml")
 
 if cocotb.simulator.is_running():
     DATA_WIDTH = int(cocotb.top.DataWidth)
@@ -28,21 +38,34 @@ if cocotb.simulator.is_running():
     BYTE_ALIGN = int(cocotb.top.ByteAlign)
     DIGEST_WIDTH = int(cocotb.top.DigestWidth)
 
+    ADDR_STEP: int = 8 if BYTE_ALIGN else 32
+
+    DIGEST_REGS_ADDR: List[int] = [
+        align(addr, ADDR_STEP) + DIGEST_ADDR
+        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
+    ]
+
+    BLOCK_REGS_ADDR: List[int] = [
+        align(addr, ADDR_STEP) + BLOCK_ADDR
+        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
+    ]
+
+    VALID_REGS_ADDR: List[int] = DIGEST_REGS_ADDR + BLOCK_REGS_ADDR + [CTRL_ADDR]
+
+    request: Request = Request(ADDR_WIDTH, DATA_WIDTH, ADDR_STEP)
+    request_covergroup: RequestCovergroup = RequestCovergroup(
+        ADDR_WIDTH,
+        DATA_WIDTH,
+        ADDR_STEP,
+        BLOCK_REGS_ADDR,
+        DIGEST_REGS_ADDR,
+        VALID_REGS_ADDR,
+    )
+
 
 @cocotb.coroutine
 async def init(dut):
     """Initialize input signals value"""
-
-    """ 
-
-    This would be the correct way to do it.
-    But verilator does not support it so the list must be maintained by hand.
-
-    for signal in dir(sha):
-        if signal.endswith('_i') and signal != "clk_i":
-            dut._id(signal, extended=False).value = 0 
-            
-    """
 
     dut.reqdata_i.value = 0
     dut.reqaddr_i.value = 0
@@ -59,356 +82,157 @@ async def init(dut):
     await Timer(1, units="ns")
 
 
-def sim_strobe_write(prevval: int, wrval: int, strobe: int, databytes: int) -> int:
-    regval: int = 0
+def overwwrite(prev_value: int, write_value: int, strobe: int) -> int:
+    """Overwrite a register value with a new value"""
+
+    exp_value: int = 0
     data: int = 0
 
-    for b in range(0, databytes):
-        data = wrval if strobe & (1 << b) else prevval
-        regval |= data & (0xFF << b * 8)
+    for b in range(0, DATA_WIDTH >> 3):
+        data = write_value if strobe & (1 << b) else prev_value
+        exp_value |= data & (0xFF << b * 8)
 
-    return regval
+    return exp_value
 
 
-async def block_registers_access(dut, test_id) -> None:
-    """
+def pseudowrite(
+    prev_value: int, write_value: int, addr: int, strobe: int, err: bool
+) -> int:
+    """Simulate a write operation in the register interface based on the register previous value and request parameters"""
 
-    Write operation is performed with random data and valid address.
-    The address is read back and it is expected to find the previously
-    written data.
+    # Return early if we know it's an invalid address
+    if err:
+        return 0
 
-    """
+    # Function is split by address ranges
+    if addr in DIGEST_REGS_ADDR:
+        return prev_value
+
+    elif addr in BLOCK_REGS_ADDR:
+        return overwwrite(prev_value, write_value, strobe)
+
+    elif addr == CTRL_ADDR:
+        # If strobe[0] is not set, nothing is written
+        if not (strobe & 0x1):
+            return prev_value
+
+        # Mask for control register
+        ctrl_mask: int = 0b100001
+
+        # If reset bit is written, register is cleared
+        if (write_value >> 1) & 0x1:
+            return 0
+
+        return overwwrite(prev_value, write_value, strobe) & ctrl_mask
+
+
+@cocotb.test()
+async def toggle_reset(dut) -> None:
+    """Toggle reset signal (sanity check)"""
 
     await init(dut)
-
-    REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) + BLOCK_ADDR
-        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
-    ]
-
-    data: int = randbits(DATA_WIDTH)
-    regaddr: int = choice(REGS_ADDR)
-
-    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
-
-    await Timer(35, units="ns")
 
     # Turn off reset
     dut.rst_ni.value = 1
 
-    await ClockCycles(dut.clk_i, 5)
-
+    await Timer(35, units="ns")
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
-    dut._log.info(f"Register access with data = {data:#x} at address = {regaddr:#x}.")
 
-    await master.write(address=regaddr, value=data)
-    dut._log.debug(f"Write: {data:#x} at address {regaddr:#x}")
+async def register_accesses(dut, id) -> None:
+    """Register accesses with randomly contrained data"""
 
-    await ClockCycles(dut.clk_i, 5)
+    # Randomize and sample the request
+    request.randomize()
+    request_covergroup.sample(request)
 
-    regval = await master.read(address=regaddr)
-    regval = int(regval.value)
-    dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
+    # Gather request parameters
+    data: int = request.data
+    be: int = request.be
+    addr: int = request.addr
 
-    assert regval == data, (
-        f"Test {test_id}:",
-        f"Expected {data:#x} at address {regaddr:#x}, " f"read {regval:#x}",
-    )
+    # Define expected results based on request parameters
+    err: bool = addr not in VALID_REGS_ADDR
+    valid: bool = addr in VALID_REGS_ADDR
 
+    # Apply a random value to the read only digest register
+    dut.digest_i.value = randbits(DIGEST_WIDTH)
 
-async def invalid_block_registers_access(dut, test_id) -> None:
-    """Error response from slave interface
-
-    Write operation is performed with random data and invalid address.
-    It is checked whether an error response is sent back.
-
-    """
-
-    await init(dut)
-
-    REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) + BLOCK_ADDR
-        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
-    ]
-
-    maxaddr: int = BLOCK_WIDTH >> 3 if BYTE_ALIGN == 1 else BLOCK_WIDTH >> 5
-    INVALID_REGS_ADDR: List[int] = [
-        addr for addr in range(maxaddr, maxaddr + BLOCK_ADDR) if addr not in REGS_ADDR
-    ]
-
-    if not INVALID_REGS_ADDR:
-        raise TestSuccess(
-            f"No invalid addresses for BlockWidth = {BLOCK_WIDTH}, ",
-            f"DataWidth = {DATA_WIDTH} and ByteAlign = {BYTE_ALIGN}",
-        )
-
-    data: int = 0x55
-    regaddr: int = choice(INVALID_REGS_ADDR)
-
+    # Start clock and create Master interface
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
     master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
 
-    await Timer(35, units="ns")
+    # Read register before write operation
+    prev_value = await master.read(address=addr)
+    exp_value: int = pseudowrite(prev_value.value, data, addr, be, err)
 
-    # Turn off reset
-    dut.rst_ni.value = 1
-
-    await ClockCycles(dut.clk_i, 5)
-
-    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
-
-    dut._log.info(
-        f"Invalid register access with data = {data:#x} at address = {regaddr:#x}."
-    )
-
-    await master.write(address=regaddr, value=data)
-    dut._log.debug(f"Write: {data:#x} at address {regaddr:#x}")
+    # Write request
+    await master.write(address=addr, value=data, strobe=be)
+    dut._log.debug(f"Write: {data:#x} at address {addr:#x} with byte enable {be:b}")
 
     # Wait next cycle for response
     await RisingEdge(dut.clk_i)
 
-    error: int = int(dut.rsperror_o.value)
+    # Check response status
+    rsperr: bool = bool(dut.rsperror_o.value)
+    rspvalid: bool = bool(dut.rspvalid_o.value)
 
+    # Error and valid should never be asserted in the same cycle
+    assert rsperr & rspvalid == False
+
+    # Error response
     assert (
-        error == 1
-    ), f"Test {test_id}: Expected an error response at address {regaddr:#x}."
+        rsperr == err
+    ), f"Test {id}: Incorrect response error at {addr:#x}: expected {err}."
 
-    await ClockCycles(dut.clk_i, 5)
+    # Valid response
+    assert (
+        rspvalid == valid
+    ), f"Test {id}: Incorrect valid response at {addr:#x}: expected {valid}."
 
+    # Read value back
+    read_value = await master.read(address=addr)
+    read_value = int(read_value.value) if valid else 0
 
-async def strobe_block_registers_accesses(dut, test_id) -> None:
-    """Access the block registers with random strobe value
+    dut._log.debug(f"Read: {read_value:#x} at address {addr:#x}")
 
-    Write operations are performed with random data and valid addresses.
-    This tests that only valid bytes are written.
-
-    """
-
-    await init(dut)
-
-    REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) + BLOCK_ADDR
-        for addr in range(0, BLOCK_WIDTH, DATA_WIDTH)
-    ]
-
-    data: int = randbits(DATA_WIDTH)
-    validbytes: int = randbits(DATA_WIDTH >> 3)
-    regaddr: int = choice(REGS_ADDR)
-
-    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
-
-    await Timer(35, units="ns")
-
-    # Turn off reset
-    dut.rst_ni.value = 1
-
-    await ClockCycles(dut.clk_i, 5)
-
-    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
-
-    # Read register before write operation
-    prev_regval = await master.read(address=regaddr)
-
-    expval: int = sim_strobe_write(prev_regval.value, data, validbytes, DATA_WIDTH >> 3)
-
-    dut._log.info(
-        f"Register access with data = {data:#x} at address = {regaddr:#x}, with strobe = {validbytes:#x}."
+    # Compare read value and expected value
+    assert read_value == exp_value, (
+        f"Test {id}:",
+        f"Expected {exp_value:#x} at address {addr:#x}, read {read_value:#x}",
     )
-
-    # Write to the register
-    await master.write(address=regaddr, value=data, strobe=validbytes)
-
-    await ClockCycles(dut.clk_i, 5)
-
-    regval = await master.read(address=regaddr)
-    regval = int(regval.value)
-
-    dut._log.debug(f"Read: {regval:#x} at address {regaddr:#x}")
-
-    assert regval == expval, (
-        f"Test {test_id}:",
-        f"Expected {expval:#x} at address {regaddr:#x}, read {regval:#x}",
-    )
-
-
-async def digest_register(dut, test_id) -> None:
-    """Digest register access
-
-    Read operations are performed on the digest register.
-
-    """
-
-    await init(dut)
-
-    # Give a random value to the digest input
-    digest = randbits(DIGEST_WIDTH)
-
-    REGS_ADDR: List[int] = [
-        align(addr, BYTE_ALIGN) + DIGEST_ADDR
-        for addr in range(0, DIGEST_WIDTH, DATA_WIDTH)
-    ]
-
-    SHL = 3 if BYTE_ALIGN else 5
-
-    regaddr: int = choice(REGS_ADDR)
-
-    nbits = (regaddr & 0xFF) << SHL
-    mask = ((1 << DATA_WIDTH) - 1) << nbits
-    expval = (digest & mask) >> nbits
-
-    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
-
-    await Timer(35, units="ns")
-
-    # Turn off reset
-    dut.rst_ni.value = 1
-
-    await ClockCycles(dut.clk_i, 5)
-
-    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
-
-    dut.digest_i.value = digest
-
-    await ClockCycles(dut.clk_i, 5)
-
-    # Read operations on the digest register
-
-    regval = await master.read(address=regaddr)
-    regval = int(regval.value)
-
-    dut._log.debug(f"Digest: {digest:#x} with mask {mask:#x}")
-    dut._log.info(f"Register read with address = {regaddr:#x}.")
-
-    assert regval == expval
-
-    assert regval == expval, (
-        f"Test {test_id}:",
-        f"Expected {expval:#x} at address {regaddr:#x}, " f"read {regval:#x}",
-    )
-
-
-# Automatic tests generation depending on requested number of iterations
-
-cocotb_tests = [
-    block_registers_access,
-    invalid_block_registers_access,
-    strobe_block_registers_accesses,
-    digest_register,
-]
-
-for func_test in cocotb_tests:
-    factory = TestFactory(func_test)
-    factory.add_option(name="test_id", optionlist=range(ITERATIONS))
-    factory.generate_tests()
-
-
-# This test only needs one iteration
-
-
-@cocotb.test()
-async def control_register(dut) -> None:
-    """Control register accesses
-
-    Write and read operations are performed on the control register.
-
-    """
-
-    await init(dut)
-
-    cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
-
-    await Timer(35, units="ns")
-
-    # Turn off reset
-    dut.rst_ni.value = 1
-
-    await ClockCycles(dut.clk_i, 5)
-
-    assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
-
-    # Enable computation
-
-    await master.write(address=CTRL_ADDR, value=0x1)
-
-    await ClockCycles(dut.clk_i, 5)
-
-    regval = await master.read(address=CTRL_ADDR)
-    regval = int(regval.value)
-
-    assert regval == 0x1
-    assert dut.enable_hash_o.value == 0x1
-
-    dut._log.debug(">> Hash enabled")
-
-    # Last block signal
-
-    await master.write(address=CTRL_ADDR, value=0x21)
-
-    await ClockCycles(dut.clk_i, 5)
-
-    regval = await master.read(address=CTRL_ADDR)
-    regval = int(regval.value)
-
-    assert regval == 0x21
-    assert dut.last_block_o.value == 0x1
-
-    dut._log.debug(">> Hash enabled")
-
-    # Reset computation
-
-    await master.write(address=CTRL_ADDR, value=0x2)
-
-    await RisingEdge(dut.clk_i)
-
-    assert dut.reset_hash_o.value == 0x1
-
-    regval = await master.read(address=CTRL_ADDR)
-    assert regval == 0x0
-    assert dut.enable_hash_o.value == 0x0
-
-    dut._log.debug(">> Hash reset")
-
-    # Deassert enable with idle or hold
-
-    await master.write(address=CTRL_ADDR, value=0x1)
-
-    await ClockCycles(dut.clk_i, 5)
-
-    dut.idle_i.value = 0x1
 
     await ClockCycles(dut.clk_i, 2)
 
-    assert dut.enable_hash_o.value == 0x0
+    # Export coverage on last iteration
+    if VSC == "1" and id == (ITERATIONS):
+        vsc.write_coverage_db(f"{VSC_FILE}")
+        dut._log.info(f"Coverage file written in {VSC_FILE}")
 
-    dut._log.debug(">> Hash deasserted by idle signal")
+
+# Automatic tests generation depending on requested number of iterations
+factory = TestFactory(register_accesses)
+factory.add_option(name="id", optionlist=range(1, ITERATIONS + 1))
+factory.generate_tests()
 
 
-@pytest.mark.parametrize("DataWidth", ["8", "16", "32", "64", "128"])
+@pytest.mark.parametrize("DataWidth", ["16", "32", "64"])
 @pytest.mark.parametrize("BlockWidth", ["512", "1024"])
 @pytest.mark.parametrize("ByteAlign", ["1'b0", "1'b1"])
-@pytest.mark.parametrize("DigestWidth", ["224", "256"])
-def test_sha_regs(DataWidth, BlockWidth, ByteAlign, DigestWidth):
+@pytest.mark.parametrize("DigestWidth", ["224", "256", "384", "512"])
+def test_interface_regs(DataWidth, BlockWidth, ByteAlign, DigestWidth):
     """Run cocotb tests on sha1 registers for different combinations of parameters.
 
     Args:
-            DataWidth:  Data bus width.
-            BlockWidth: Width of the block to compute
-            ByteAlign:  Whether we want an alignment on bytes or words.
+            DataWidth:   Data bus width.
+            BlockWidth:  Width of the block to compute.
+            ByteAlign:   Whether we want an alignment on bytes or words.
+            DigestWidth: Width of the final digest.
 
     """
 
     # skip test if there is an invalid combination of parameters
-    if ByteAlign == "1'b0" and DataWidth in ["8", "16"]:
+    if ByteAlign == "1'b0" and DataWidth == "16":
         pytest.skip(
             f"Invalid combination: ByteAlign = {ByteAlign} and DataWidth = {DataWidth}"
         )

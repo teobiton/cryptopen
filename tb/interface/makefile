@@ -30,3 +30,6 @@ EXTRA_ARGS += --trace --trace-structs
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
+clean::
+	rm -f *.xml
+
