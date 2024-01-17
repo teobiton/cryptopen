@@ -62,18 +62,17 @@ module simple_reg_interface #(
     } ctrlreg_t;
 
     // Address alignment on byte or words
-    localparam int unsigned Align = (ByteAlign) ? 8 : 32;
+    localparam int unsigned Alignment = (ByteAlign) ? 8 : 32;
+    localparam int unsigned AddrStep  = DataWidth / Alignment;
 
     // Block registers constants
-    localparam int unsigned BlRegs     = BlockWidth / DataWidth;
-    localparam int unsigned BlAddrStep = (BlockWidth / BlRegs) / Align;
+    localparam int unsigned BlRegs = BlockWidth / DataWidth;
 
-    // Calculate closest multiple of DataWidth
-    localparam int unsigned DiPadded = int'($ceil(DigestWidth / DataWidth) + 1) * DataWidth;
+    // Calculate DigestWidth closest multiple of DataWidth
+    localparam int unsigned DiPadded = (DigestWidth + DataWidth - 1) & ~(DataWidth - 1);
 
     // Digest registers base constant
-    localparam int unsigned DiNumRegs  = DiPadded / DataWidth;
-    localparam int unsigned DiAddrStep = (DiPadded / DiNumRegs) / Align;
+    localparam int unsigned DiNumRegs = DiPadded / DataWidth;
 
     logic [BlockWidth-1:0]  block;
     logic [DiPadded-1:0]    digest;
@@ -111,14 +110,14 @@ module simple_reg_interface #(
 
     // block register
     for (genvar r = 0; r < BlRegs; r++) begin : gen_block_regssel
-        assign block_regssel[r] = (reqaddr[7:0] == 8'(r*BlAddrStep)) & reqvalid_i;
+        assign block_regssel[r] = (reqaddr[7:0] == 8'(r*AddrStep)) & reqvalid_i;
     end
 
     // digest register
     assign digest = DiPadded'({'0, digest_i});
 
     for (genvar d = 0; d < DiNumRegs; d++) begin : gen_digest_regssel
-        assign digest_regssel[d] = (reqaddr[7:0] == 8'(d*DiAddrStep)) & reqvalid_i;
+        assign digest_regssel[d] = (reqaddr[7:0] == 8'(d*AddrStep)) & reqvalid_i;
     end
 
     // control register
