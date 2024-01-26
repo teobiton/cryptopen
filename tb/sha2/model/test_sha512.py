@@ -30,7 +30,9 @@ def test_one_block_message(digest_width) -> None:
 def test_multi_block_message(digest_width) -> None:
     """Multi-block message from FIPS sha512 examples"""
 
-    message: str = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"
+    message: str = (
+        "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"
+    )
 
     hash_core = sha512(digest_width=digest_width, debug=True, encoding="ascii")
 
