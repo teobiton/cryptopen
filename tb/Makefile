@@ -26,7 +26,7 @@ CORE_SOURCES := $(shell cat $(CORE_DIRECTORY)/Flist.$(TOPLEVEL))
 VERILOG_SOURCES = $(addprefix $(ROOT_DIRECTORY)/, $(CORE_SOURCES)) $(ITF_DIRECTORY)/simple_reg_interface.sv
 
 # Verilator extra arguments to build waves
-EXTRA_ARGS += --trace --trace-structs
+EXTRA_ARGS += --trace --trace-structs --trace-fst
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 

@@ -373,7 +373,7 @@ def test_ip(ip, DigestWidth):
     extra_args: List[str] = []
 
     if SIM == "verilator" and WAVES == "1":
-        extra_args = ["--trace", "--trace-structs"]
+        extra_args = ["--trace", "--trace-structs", "--trace-fst"]
 
     parameters: Dict[str, str] = {}
 

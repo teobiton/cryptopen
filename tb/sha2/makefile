@@ -22,7 +22,7 @@ MODULE = test_sha2_cores
 VERILOG_SOURCES = $(SHA_DIRECTORY)/sha256_core.sv
 
 # Verilator extra arguments to build waves
-EXTRA_ARGS += --trace --trace-structs
+EXTRA_ARGS += --trace --trace-structs --trace-fst
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 

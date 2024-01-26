@@ -3,4 +3,5 @@ __pycache__/
 sim_build/
 
 *.vcd
+*.fst
 *.xml

@@ -26,7 +26,7 @@ VERILOG_SOURCES = $(ITF_DIRECTORY)/$(VERILOG_FILE)
 ITERATIONS := 10 # Number of random tests ran
 
 # Verilator extra arguments to build waves
-EXTRA_ARGS += --trace --trace-structs
+EXTRA_ARGS += --trace --trace-structs --trace-fst
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
