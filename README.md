@@ -1,10 +1,15 @@
 # Cryptopen  🔐
 
-Welcome to Cryptopen, a library of hardware implementations of cryptographic algorithms. All implementations are made using SystemVerilog, and focus is on the most widely used algorithms where hardware accelerators shine.
+Welcome to Cryptopen, a library of hardware implementations of cryptographic algorithms.
+All implementations are made using SystemVerilog, and focus is on the most widely used algorithms where hardware accelerators shine.
 
-🚧 **Work in Progress:** The open source IP library is a work in progress and current focus is on FPGA development flow, synthesis flow, security features, SHA-3, whirlpool implementations. Feel free to join in!
+🚧 **Work in Progress:** The open source IP library is a work in progress and current focus is on FPGA development flow, synthesis flow, security features, SHA-3, whirlpool implementations.
+Feel free to join in!
 
-🚀 The ultimate goal is to deliver functional open-source implementations ready for integration into System on Chips. To achieve this, we're investing in comprehensive testbenches and a seamless flow with synthesis tools. All of this using other cool open source projects. Also, the main idea behind this project is to learn as much as possible on ASIC/FPGA projects.
+🚀 The ultimate goal is to deliver functional open-source implementations ready for integration into System on Chips.
+To achieve this, we're investing in comprehensive testbenches and a seamless flow with synthesis tools.
+All of this using other cool open source projects.
+Also, the main idea behind this project is to learn as much as possible on ASIC/FPGA projects.
 
 Cryptopen is organized as follows:
 
@@ -60,44 +65,49 @@ Synthesis and implementation done with Spartan-7, Artix-7 and Genesys-2 boards, 
 
 | IP          | LUTs | FF   | Frequency estimation |
 |-------------|------|------|----------------------|
-| SHA-1       | 1455 | 1499 | 150 MHz              |
-| SHA-224     | 1968 | 1898 | 146 MHz              |
-| SHA-256     | 1945 | 1841 | 148 MHz              |
-| SHA-384     | 4035 | 3826 | 136 MHz              |
-| SHA-512     | 4070 | 3755 | 134 MHz              |
-| SHA-512/224 | 3848 | 3756 | 136 MHz              |
-| SHA-512/256 | 3872 | 3760 | 134 MHz              |
+| SHA-1       | 1440 | 1501 | 149 MHz              |
+| SHA-224     | 1945 | 1897 | 142 MHz              |
+| SHA-256     | 1945 | 1896 | 142 MHz              |
+| SHA-384     | 3971 | 3586 | 125 MHz              |
+| SHA-512     | 4132 | 3572 | 125 MHz              |
+| SHA-512/224 | 3868 | 3579 | 127 MHz              |
+| SHA-512/256 | 3906 | 3573 | 125 MHz              |
 
 - **Artix-7**
 
 | IP          | LUTs | FF   | Frequency estimation |
 |-------------|------|------|----------------------|
-| SHA-1       | 1455 | 1499 | 150 MHz              |
-| SHA-224     | 1968 | 1898 | 146 MHz              |
-| SHA-256     | 1945 | 1838 | 148 MHz              |
-| SHA-384     | 4035 | 3822 | 136 MHz              |
-| SHA-512     | 4069 | 3754 | 134 MHz              |
-| SHA-512/224 | 3848 | 3803 | 136 MHz              |
-| SHA-512/256 | 3872 | 3760 | 134 MHz              |
+| SHA-1       | 1440 | 1501 | 149 MHz              |
+| SHA-224     | 1946 | 1896 | 142 MHz              |
+| SHA-256     | 1945 | 1896 | 142 MHz              |
+| SHA-384     | 3972 | 3718 | 125 MHz              |
+| SHA-512     | 4132 | 3572 | 125 MHz              |
+| SHA-512/224 | 3868 | 3579 | 127 MHz              |
+| SHA-512/256 | 3906 | 3573 | 125 MHz              |
 
 - **Genesys-2**
 
 | IP          | LUTs | FF   | Frequency estimation |
 |-------------|------|------|----------------------|
-| SHA-1       | 1456 | 1499 | 215 MHz              |
-| SHA-224     | 1968 | 1898 | 213 MHz              |
-| SHA-256     | 1945 | 1841 | 222 MHz              |
-| SHA-384     | 4040 | 3757 | 203 MHz              |
-| SHA-512     | 4081 | 3753 | 203 MHz              |
-| SHA-512/224 | 3849 | 3792 | 203 MHz              |
-| SHA-512/256 | 3883 | 3758 | 203 MHz              |
+| SHA-1       | 1440 | 1501 | 211 MHz              |
+| SHA-224     | 1946 | 1896 | 208 MHz              |
+| SHA-256     | 1946 | 1895 | 206 MHz              |
+| SHA-384     | 3926 | 3568 | 186 MHz              |
+| SHA-512     | 4070 | 3557 | 186 MHz              |
+| SHA-512/224 | 3823 | 3560 | 188 MHz              |
+| SHA-512/256 | 3861 | 3554 | 186 MHz              |
 
 ## Tools
 
 Several tools for hardware development are used for various part of the project.
 
-**[Cocotb](https://github.com/cocotb/cocotb)** is a powerful Python framework for hardware verification, seamlessly integrating with SystemVerilog testbenches to streamline the testing process and ensure robust functionality in hardware implementations. Cryptopen fully relies on cocotb to test the IPs and uses version 1.8.0. Runners using pytest and makefile flows are supported for all IPs.
+**[Cocotb](https://github.com/cocotb/cocotb)** is a powerful Python framework for hardware verification, seamlessly integrating with SystemVerilog testbenches to streamline the testing process and ensure robust functionality in hardware implementations.
+Cryptopen fully relies on cocotb to test the IPs and uses version 1.8.0.
+Runners using pytest and makefile flows are supported for all IPs.
 
-**[Verilator](https://github.com/verilator/verilator)** is a fast and open-source simulator that translates synthesizable Verilog code to efficient C++ or SystemC models, offering rapid simulation for hardware design verification. It is the simulator paired with cocotb in Cryptopen testbenches. The version required is v5.006 or later.
+**[Verilator](https://github.com/verilator/verilator)** is a fast and open-source simulator that translates synthesizable Verilog code to efficient C++ or SystemC models, offering rapid simulation for hardware design verification.
+It is the simulator paired with cocotb in Cryptopen testbenches.
+The version required is v5.006 or later.
 
-**[Vivado](https://www.xilinx.com/products/design-tools/vivado.html)** is an (not open source but) advanced FPGA design and implementation tool. The FPGA flow relies on Vivado 2020.1.
+**[Vivado](https://www.xilinx.com/products/design-tools/vivado.html)** is an (not open source but) advanced FPGA design and implementation tool.
+The FPGA flow relies on Vivado 2020.1.
