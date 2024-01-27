@@ -23,7 +23,7 @@ CORE_DIRECTORY = $(HW_DIRECTORY)/$(TOPLEVEL)
 CORE_SOURCES := $(shell cat $(CORE_DIRECTORY)/Flist.$(TOPLEVEL))
 
 # Pointing to the verilog files to test
-VERILOG_SOURCES = $(addprefix $(ROOT_DIRECTORY)/, $(CORE_SOURCES)) $(ITF_DIRECTORY)/simple_reg_interface.sv
+VERILOG_SOURCES = $(addprefix $(ROOT_DIRECTORY)/, $(CORE_SOURCES))
 
 # Verilator extra arguments to build waves
 EXTRA_ARGS += --trace --trace-structs --trace-fst
