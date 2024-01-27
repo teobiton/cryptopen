@@ -11,7 +11,6 @@ import pytest
 import vsc
 from bus.master import Master
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from utils import (
@@ -138,6 +137,8 @@ async def toggle_reset(dut) -> None:
     assert dut.rst_ni.value == 1, f"{dut.name} is still under reset"
 
 
+@cocotb.test()
+@cocotb.parameterize(id=range(1, ITERATIONS + 1))
 async def register_accesses(dut, id) -> None:
     """Register accesses with randomly contrained data"""
 
@@ -207,12 +208,6 @@ async def register_accesses(dut, id) -> None:
     if VSC == "1" and id == (ITERATIONS):
         vsc.write_coverage_db(f"{VSC_FILE}")
         dut._log.info(f"Coverage file written in {VSC_FILE}")
-
-
-# Automatic tests generation depending on requested number of iterations
-factory = TestFactory(register_accesses)
-factory.add_option(name="id", optionlist=range(1, ITERATIONS + 1))
-factory.generate_tests()
 
 
 @pytest.mark.parametrize("DataWidth", ["16", "32", "64"])

@@ -10,7 +10,6 @@ from typing import Dict, List, Union
 import cocotb
 import pytest
 from cocotb.clock import Clock
-from cocotb.regression import TestFactory
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
@@ -56,6 +55,12 @@ MAPPING: Dict[str, str] = {
     "rspdata": "sha_s_rspdata_o",
     "rsperror": "sha_s_rsperror_o",
 }
+
+# Random messages
+messages: List[str] = [
+    "".join(choice(printable) for _ in range(choice(range(5, 2000))))
+    for _ in range(ITERATIONS)
+]
 
 
 def intblock(blocks: List[bytearray], index: int) -> int:
@@ -259,6 +264,8 @@ async def run_two_block_message(dut) -> None:
     assert dut.digest_valid == 0
 
 
+@cocotb.test()
+@cocotb.parameterize(message=messages)
 async def run_random_message(dut, message) -> None:
     """Write blocks and run algorithm for random messages"""
 
@@ -331,15 +338,6 @@ async def run_random_message(dut, message) -> None:
     await ClockCycles(dut.clk_i, 2)
 
     assert dut.digest_valid == 0
-
-
-factory = TestFactory(run_random_message)
-messages: List[str] = [
-    "".join(choice(printable) for _ in range(choice(range(5, 2000))))
-    for _ in range(ITERATIONS)
-]
-factory.add_option(name="message", optionlist=messages)
-factory.generate_tests()
 
 
 @pytest.mark.parametrize("ip", ["sha1", "sha256", "sha512"])
