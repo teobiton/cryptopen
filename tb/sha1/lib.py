@@ -16,7 +16,6 @@ class fsm(Enum):
     DONE = 0x3
 
 
-@cocotb.coroutine
 async def init(dut):
     """Initialize input signals value"""
 

@@ -63,7 +63,6 @@ if cocotb.simulator.is_running():
     )
 
 
-@cocotb.coroutine
 async def init(dut):
     """Initialize input signals value"""
 

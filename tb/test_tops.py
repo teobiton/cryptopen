@@ -76,7 +76,6 @@ def core_factory(
         return ValueError(f"Unsupported core: {name}")
 
 
-@cocotb.coroutine
 async def init(dut):
     """Initialize input signals value"""
 
