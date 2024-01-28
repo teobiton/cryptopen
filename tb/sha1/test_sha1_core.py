@@ -19,8 +19,8 @@ SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 WAVES = os.getenv("WAVES", "0")
 
 if cocotb.simulator.is_running():
-    BLOCK_WIDTH = int(cocotb.top.BlockWidth)
-    DIGEST_WIDTH = int(cocotb.top.DigestWidth)
+    BLOCK_WIDTH = cocotb.top.BlockWidth.value
+    DIGEST_WIDTH = cocotb.top.DigestWidth.value
 
 
 @cocotb.test()

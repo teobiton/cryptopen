@@ -25,11 +25,11 @@ SIM_BUILD = os.getenv("SIM_BUILD", "sim_build")
 WAVES = os.getenv("WAVES", "0")
 
 if cocotb.simulator.is_running():
-    DATA_WIDTH = int(cocotb.top.DataWidth)
-    ADDR_WIDTH = int(cocotb.top.AddrWidth)
-    BLOCK_WIDTH = int(cocotb.top.BlockWidth)
-    BYTE_ALIGN = int(cocotb.top.ByteAlign)
-    DIGEST_WIDTH = int(cocotb.top.DigestWidth)
+    DATA_WIDTH = cocotb.top.DataWidth.value
+    ADDR_WIDTH = cocotb.top.AddrWidth.value
+    BLOCK_WIDTH = cocotb.top.BlockWidth.value
+    BYTE_ALIGN = cocotb.top.ByteAlign.value
+    DIGEST_WIDTH = cocotb.top.DigestWidth.value
 
     ADDR_STEP: int = 8 if BYTE_ALIGN else 32
 
