@@ -12,16 +12,50 @@ read and write operations.
 
 from typing import Dict, List, Optional
 
-from cocotb.binary import BinaryValue
+from cocotb.types import LogicArray
 from cocotb.clock import Clock
-from cocotb.decorators import coroutine
 from cocotb.handle import SimHandleBase
 from cocotb.triggers import RisingEdge
-from cocotb_bus.drivers import BusDriver
 
 
-class Mapper(BusDriver):
-    """Interface Mapper
+def build_sig_attr_dict(signals):
+    """Handle signals mapping provided by user or return generic one"""
+    if isinstance(signals, dict):
+        return signals
+    return {sig: sig for sig in signals}
+
+
+class Bus:
+    """Bus
+
+    A bus is just a simple interface between actual signals of the bus implementation and
+    protocol generic names.
+
+    """
+
+    def __init__(self, entity, signals):
+        """
+        Args:
+            entity: instance to the entity containing the bus.
+            signals (list or dict): In the case of an object that has the same attribute names
+                as the signal names of the bus, the signal* argument can be a list of those names.
+                When the object has different attribute names, the signals argument should be
+                a dict that maps bus attribute names to object signal names.
+        """
+        self._entity = entity
+        self._signals = {}
+        for attr_name, sig_name in build_sig_attr_dict(signals).items():
+            signame = sig_name
+            self._add_signal(attr_name, signame)
+
+    def _add_signal(self, attr_name, signame):
+        handle = getattr(self._entity, signame)
+        setattr(self, attr_name, handle)
+        self._signals[attr_name] = getattr(self, attr_name)
+
+
+class SimpleMapper:
+    """Simple Interface Mapper
 
     This class maps the bus signals to the actual entity signals.
 
@@ -43,14 +77,11 @@ class Mapper(BusDriver):
     def __init__(
         self,
         entity: SimHandleBase,
-        name: str,
-        clock: Clock,
         mapping: Optional[Dict[str, str]] = None,
-        **kwargs
     ):
         self._signals = mapping if mapping is not None else self.signals
 
-        BusDriver.__init__(self, entity, name, clock, **kwargs)
+        self.bus: Bus = Bus(entity, self._signals)
 
         # Drive requests signals to default values
         self.bus.reqdata.value.binstr = "0" * len(self.bus.reqdata)
@@ -69,28 +100,22 @@ class Mapper(BusDriver):
         pass
 
 
-class Master(Mapper):
-    """Master interface"""
+class SimpleMaster(SimpleMapper):
+    """Simple Master interface"""
 
     def __init__(
         self,
         entity: SimHandleBase,
-        name: str,
         clock: Clock,
         mapping: Optional[Dict[str, str]] = None,
-        **kwargs
     ):
-        # Workaround for an issue with Verilator/Cocotb (see https://github.com/cocotb/cocotb/issues/3259)
-        # case_insensitive=False is needed otherwise the bus class is unusable
-        Mapper.__init__(
-            self, entity, name, clock, mapping, case_insensitive=False, **kwargs
-        )
+        self.clock: Clock = clock
+        SimpleMapper.__init__(self, entity, mapping)
 
     def __len__(self) -> int:
         return 2 ** len(self.bus.address)
 
-    @coroutine
-    async def read(self, address: int) -> BinaryValue:
+    async def read(self, address: int) -> LogicArray:
         """Issue a request to the bus and block until this comes back.
 
         Simulation time still progresses
@@ -132,7 +157,6 @@ class Master(Mapper):
         self._release_lock()
         return data
 
-    @coroutine
     async def write(
         self, address: int, value: int, strobe: Optional[int] = None
     ) -> None:

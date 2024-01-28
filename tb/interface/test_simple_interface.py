@@ -9,7 +9,7 @@ from typing import Dict, List
 import cocotb
 import pytest
 import vsc
-from bus.master import Master
+from bus.master import SimpleMaster
 from cocotb.clock import Clock
 from cocotb.runner import Simulator, get_runner
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
@@ -158,9 +158,11 @@ async def register_accesses(dut, id) -> None:
     # Apply a random value to the read only digest register
     dut.digest_i.value = randbits(DIGEST_WIDTH)
 
-    # Start clock and create Master interface
+    # Start clock and create SimpleMaster interface
     cocotb.start_soon(Clock(dut.clk_i, period=10, units="ns").start())
-    master: Master = Master(dut, name=None, clock=dut.clk_i, mapping=MAPPING)
+    master: SimpleMaster = SimpleMaster(
+        dut, name=None, clock=dut.clk_i, mapping=MAPPING
+    )
 
     # Read register before write operation
     prev_value = await master.read(address=addr)
