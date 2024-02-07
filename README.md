@@ -102,7 +102,7 @@ Synthesis and implementation done with Spartan-7, Artix-7 and Genesys-2 boards, 
 Several tools for hardware development are used for various part of the project.
 
 **[Cocotb](https://github.com/cocotb/cocotb)** is a powerful Python framework for hardware verification, seamlessly integrating with SystemVerilog testbenches to streamline the testing process and ensure robust functionality in hardware implementations.
-Cryptopen fully relies on cocotb to test the IPs and uses version 1.8.0.
+Cryptopen fully relies on cocotb to test the IPs and uses version 1.8.1.
 Runners using pytest and makefile flows are supported for all IPs.
 
 **[Verilator](https://github.com/verilator/verilator)** is a fast and open-source simulator that translates synthesizable Verilog code to efficient C++ or SystemC models, offering rapid simulation for hardware design verification.
